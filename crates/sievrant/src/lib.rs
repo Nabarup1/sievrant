@@ -1,3 +1,16 @@
+//! # Sievrant Core SDK
+//!
+//! This crate provides the primary high-level interface for interacting with Sievrant,
+//! the mathematically guaranteed AI retrieval engine.
+//!
+//! ## Overview
+//!
+//! The `sievrant` crate is designed around the `Corpus` object, which represents
+//! an isolated namespace of documents, vector indexes, BM25 indexes, and knowledge graphs.
+//! 
+//! Queries are executed either using the `retrieve` convenience function or the
+//! `RetrieveBuilder` for fine-grained control over routing, token budgets, and conformal coverage.
+
 use std::sync::Arc;
 
 pub use sievrant_core::config::SievrantConfig;

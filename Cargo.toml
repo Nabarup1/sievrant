@@ -28,6 +28,9 @@ authors = ["Sievrant Team"]
 license = "Apache-2.0"
 repository = "https://github.com/Nabarup1/sievrant"
 description = "Statistically audited retrieval decision engine"
+keywords = ["rag", "llm", "search", "conformal-prediction", "retrieval"]
+categories = ["algorithms", "science", "database implementations"]
+publish = true
 
 [workspace.dependencies]
 # Async runtime and networking
