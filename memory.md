@@ -81,7 +81,8 @@ This is a living document tracking architectural decisions, open questions, less
 
 ## Lessons Learned
 
-(Update this section as development progresses)
+- **September 2026**: Python SDK tests complete via `pytest` over `httpx` mock. Node SDK established with `vitest` infrastructure. The core math implementations in `sievrant-math` (RRF, Submodular, Conformal) execute in bare metal microseconds (<10ms for 1000 items), validating AD001 (Rust as primary language).
+- **September 2026**: When dealing with WSL to Windows file boundaries in Node.js development, native Node.js binaries from the Windows path will fail when run over UNC paths (`\\wsl.localhost\Ubuntu\...`). Need to ensure Linux `npm` and `node` are used exclusively within the WSL terminal for test execution.
 
 ---
 
@@ -90,3 +91,4 @@ This is a living document tracking architectural decisions, open questions, less
 | Date | Author | Change |
 |---|---|---|
 | 2026 08 30 | Initial | Project created, all architectural decisions documented |
+| 2026 09 09 | Agent | Completed Core SDKs, documented math benchmarks, successfully pushed initial working release to GitHub. |

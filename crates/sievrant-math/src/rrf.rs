@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use sievrant_core::types::{ChunkMetadata, FusedCandidate, RankedCandidate, RetrieverType};
 
@@ -25,7 +25,7 @@ pub fn reciprocal_rank_fusion(
 ) -> Vec<FusedCandidate> {
     // Determine a rough capacity to avoid reallocations
     let total_elements = ranked_lists.iter().map(|l| l.len()).sum();
-    let mut map: HashMap<String, FusedCandidate> = HashMap::with_capacity(total_elements);
+    let mut map: FxHashMap<String, FusedCandidate> = FxHashMap::with_capacity_and_hasher(total_elements, Default::default());
 
     for ranked_list in ranked_lists {
         for (rank_index, candidate) in ranked_list.iter().enumerate() {
