@@ -1,0 +1,109 @@
+# Sievrant Workspace
+# Root Cargo.toml for the workspace
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/sievrant-core",
+    "crates/sievrant-index",
+    "crates/sievrant-math",
+    "crates/sievrant-rerank",
+    "crates/sievrant-query",
+    "crates/sievrant-llm",
+    "crates/sievrant-orchestrator",
+    "crates/sievrant-storage",
+    "crates/sievrant-acl",
+    "crates/sievrant-observability",
+    "crates/sievrant-audit",
+    "crates/sievrant-calibration",
+    "crates/sievrant-server",
+    "crates/sievrant-cli",
+    "crates/sievrant",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Sievrant Team"]
+license = "Apache-2.0"
+repository = "https://github.com/Nabarup1/sievrant"
+description = "Statistically audited retrieval decision engine"
+
+[workspace.dependencies]
+# Async runtime and networking
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging and observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+opentelemetry = "0.27"
+opentelemetry-otlp = "0.27"
+opentelemetry_sdk = "0.27"
+
+# Search and indexing
+tantivy = "0.22"
+qdrant-client = "1"
+
+# Graph
+petgraph = "0.6"
+
+# Machine learning inference (ort 2.x stable not yet on crates.io, pin to latest RC)
+ort = { version = "2.0.0-rc.13", features = ["load-dynamic"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Configuration
+config = "0.14"
+
+# Cryptography and hashing
+sha2 = "0.10"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Testing
+proptest = "1"
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3"
+
+# Web server
+axum = "0.7"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# Concurrency utilities
+arc-swap = "1"
+dashmap = "6"
+crossbeam-channel = "0.5"
+ordered-float = "4.0"
+
+# Workspace internal dependencies
+sievrant-core = { path = "crates/sievrant-core" }
+sievrant-index = { path = "crates/sievrant-index" }
+sievrant-math = { path = "crates/sievrant-math" }
+sievrant-rerank = { path = "crates/sievrant-rerank" }
+sievrant-query = { path = "crates/sievrant-query" }
+sievrant-llm = { path = "crates/sievrant-llm" }
+sievrant-orchestrator = { path = "crates/sievrant-orchestrator" }
+sievrant-storage = { path = "crates/sievrant-storage" }
+sievrant-acl = { path = "crates/sievrant-acl" }
+sievrant-observability = { path = "crates/sievrant-observability" }
+sievrant-audit = { path = "crates/sievrant-audit" }
+sievrant-calibration = { path = "crates/sievrant-calibration" }
+sievrant-server = { path = "crates/sievrant-server" }
+sievrant-cli = { path = "crates/sievrant-cli" }
+sievrant = { path = "crates/sievrant" }

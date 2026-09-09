@@ -1,0 +1,19 @@
+[package]
+name = "sievrant-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Command-line tool for corpus management, querying, and benchmarking"
+
+[[bin]]
+name = "sievrant"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+clap = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sievrant = { workspace = true }

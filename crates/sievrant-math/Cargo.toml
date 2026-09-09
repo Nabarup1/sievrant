@@ -1,0 +1,20 @@
+[package]
+name = "sievrant-math"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Retrieval math: RRF fusion, submodular selection, conformal prediction gate"
+
+[dependencies]
+serde = { workspace = true }
+chrono = { workspace = true }
+sievrant-core = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "math_benchmarks"
+harness = false

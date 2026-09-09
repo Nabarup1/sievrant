@@ -1,0 +1,62 @@
+syntax = "proto3";
+package sievrant.v1;
+
+service SievrantService {
+  rpc Retrieve(RetrieveRequest) returns (RetrieveResponse);
+  rpc Ingest(IngestRequest) returns (IngestResponse);
+  rpc QueryStream(QueryRequest) returns (stream QueryResponsePart);
+}
+
+message RetrieveRequest {
+  string query = 1;
+  string corpus = 2;
+  repeated string acl_groups = 3;
+  double coverage = 4;
+  uint32 token_budget = 5;
+  bool skip_cache = 6;
+}
+
+message RetrieveResponse {
+  string query_id = 1;
+  string decision = 2;
+  optional string answer = 3;
+  uint32 evidence_count = 4;
+  double coverage_guarantee = 5;
+  uint64 latency_ms = 6;
+  bool cache_hit = 7;
+  string route = 8;
+  repeated EvidenceChunk evidence = 9;
+}
+
+message EvidenceChunk {
+  string chunk_id = 1;
+  string source_doc = 2;
+  string text = 3;
+  double rrf_score = 4;
+}
+
+message IngestRequest {
+  string corpus = 1;
+  repeated IngestDocument documents = 2;
+}
+
+message IngestDocument {
+  string id = 1;
+  string content = 2;
+  string metadata_json = 3;
+}
+
+message IngestResponse {
+  string corpus = 1;
+  uint32 ingested = 2;
+  uint32 failed = 3;
+}
+
+message QueryRequest {
+  string query = 1;
+  string corpus = 2;
+}
+
+message QueryResponsePart {
+  string text_chunk = 1;
+}

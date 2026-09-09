@@ -1,0 +1,38 @@
+[package]
+name = "sievrant-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "HTTP, gRPC, and MCP server for the Sievrant retrieval engine"
+
+[[bin]]
+name = "sievrant-server"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+sievrant = { workspace = true }
+sievrant-core = { workspace = true }
+sievrant-observability = { workspace = true }
+utoipa = { version = "4", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7", features = ["axum"] }
+tonic = "0.12"
+prost = "0.13"
+tokio-stream = "0.1"
+
+[build-dependencies]
+tonic-build = "0.12"

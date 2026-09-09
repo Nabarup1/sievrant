@@ -1,0 +1,23 @@
+[package]
+name = "sievrant-index"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Four-index retrieval layer: vector (Qdrant), BM25 (Tantivy), tree, and graph (PPR)"
+
+[dependencies]
+serde = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+qdrant-client = { workspace = true }
+tantivy = { workspace = true }
+petgraph = { workspace = true }
+sievrant-core = { workspace = true }
+sievrant-storage = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true }

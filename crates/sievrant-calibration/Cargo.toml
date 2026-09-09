@@ -1,0 +1,20 @@
+[package]
+name = "sievrant-calibration"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Per-tenant calibration set management, threshold computation, and coverage monitoring"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+sievrant-core = { workspace = true }
+sievrant-math = { workspace = true }
+dashmap = { workspace = true }
+ordered-float = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

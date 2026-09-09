@@ -1,0 +1,21 @@
+[package]
+name = "sievrant-rerank"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Cross-encoder and ColBERT reranking via ONNX Runtime and API"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+ort = { workspace = true }
+sievrant-core = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

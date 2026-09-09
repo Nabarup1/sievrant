@@ -1,0 +1,70 @@
+# Sievrant .gitignore
+
+# Rust build artifacts
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment and secrets
+.env
+*.pem
+*.key
+
+# Python virtual environment and artifacts
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+prompts/
+
+# Benchmark results (keep source, ignore generated)
+target/criterion/
+
+# Coverage reports
+*.lcov
+coverage/
+tarpaulin-report.html
+
+# OS specific
+Thumbs.db
+Desktop.ini
+
+# Logs and data
+*.log
+data/
+tmp/
+
+# ONNX models (large binary files, tracked via Git LFS or downloaded)
+models/
+
+# Calibration data (per tenant, potentially sensitive)
+calibration/tenant_*.jsonl
+
+# Audit logs (generated at runtime)
+audit/*.log
+
+# Local Qdrant data
+qdrant_storage/
+
+# Node.js SDK build output and dependencies
+sdks/nodejs/node_modules/
+sdks/nodejs/dist/
+
+# Python SDK venv and caches
+sdks/python/.venv/
+sdks/python/.pytest_cache/
+sdks/python/.mypy_cache/
+sdks/python/.ruff_cache/
+

@@ -1,0 +1,32 @@
+[package]
+name = "sievrant-orchestrator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "10-stage retrieval pipeline wiring all components into a single retrieve() call"
+
+[dependencies]
+serde = { workspace = true }
+sha2 = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+sievrant-core = { workspace = true }
+sievrant-index = { workspace = true }
+sievrant-math = { workspace = true }
+sievrant-rerank = { workspace = true }
+sievrant-query = { workspace = true }
+sievrant-llm = { workspace = true }
+sievrant-acl = { workspace = true }
+sievrant-observability = { workspace = true }
+sievrant-audit = { workspace = true }
+sievrant-calibration = { workspace = true }
+sievrant-storage = { workspace = true }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = "3.8"

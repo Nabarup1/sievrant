@@ -1,0 +1,17 @@
+[package]
+name = "sievrant-query"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Query processing, adaptive routing, and semantic cache"
+
+[dependencies]
+serde = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+dashmap = { workspace = true }
+sievrant-core = { workspace = true }
+sievrant-llm = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }

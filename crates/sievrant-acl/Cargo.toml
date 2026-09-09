@@ -1,0 +1,17 @@
+[package]
+name = "sievrant-acl"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Pre-retrieval permission-aware access control enforcement"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+sievrant-core = { workspace = true }
+dashmap = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
