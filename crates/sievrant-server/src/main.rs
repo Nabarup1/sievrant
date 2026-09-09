@@ -13,8 +13,10 @@ async fn main() {
     init_observability(&ObservabilityConfig::default()).unwrap();
 
     let mut keys = HashMap::new();
-    // Default mock key for testing: 'sk-test' hashed with sha256
-    let hash = "f11a4325a746a8be4cc8dff6dc96ab0e84b806fcf140661fffae2cb3200ff734".to_string();
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(b"sk-test");
+    let hash = format!("{:x}", hasher.finalize());
     keys.insert(hash, "tenant-test".to_string());
     let state = AppState::new(keys);
 

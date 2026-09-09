@@ -12,3 +12,8 @@ tokio = { workspace = true }
 sievrant-core = { workspace = true }
 sievrant-orchestrator = { workspace = true }
 sievrant-llm = { workspace = true }
+sievrant-index = { workspace = true }
+sievrant-query = { workspace = true }
+sievrant-rerank = { workspace = true }
+sievrant-acl = { workspace = true }
+async-trait = { workspace = true }

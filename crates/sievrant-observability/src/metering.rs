@@ -37,7 +37,7 @@ impl UsageRecord {
         input_tokens_retrieval: usize,
         input_tokens_generation: usize,
         output_tokens: usize,
-        actual_chunks_retrieved: usize,
+        _actual_chunks_retrieved: usize,
         avg_chunk_tokens: usize,
         cost_per_1k_tokens_usd: f64,
     ) -> Self {

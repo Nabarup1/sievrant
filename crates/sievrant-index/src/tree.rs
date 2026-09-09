@@ -267,6 +267,15 @@ impl RetrievalIndex for TreeIndex {
     fn index_type(&self) -> RetrieverType {
         RetrieverType::TreeIndex
     }
+
+    async fn ingest_tree_summary(
+        &self,
+        node_id: &str,
+        summary: String,
+    ) -> Result<()> {
+        self.inject_summary(node_id, summary);
+        Ok(())
+    }
 }
 
 impl TreeIndex {
@@ -281,6 +290,24 @@ impl TreeIndex {
         for child in &mut node.children {
             Self::prune_deleted(child, deleted_ids);
         }
+    }
+
+    pub fn inject_summary(&self, node_id: &str, summary: String) -> bool {
+        let mut root = self.root.write().unwrap();
+        Self::inject_summary_recursive(&mut root, node_id, summary)
+    }
+
+    fn inject_summary_recursive(node: &mut TreeNode, target_id: &str, summary: String) -> bool {
+        if node.id == target_id {
+            node.summary = Some(summary);
+            return true;
+        }
+        for child in &mut node.children {
+            if Self::inject_summary_recursive(child, target_id, summary.clone()) {
+                return true;
+            }
+        }
+        false
     }
 }
 

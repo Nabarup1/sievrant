@@ -64,6 +64,16 @@ pub enum RetrieverType {
     GraphIndex,
 }
 
+/// The taxonomy category of a query for Mondrian Conformal Prediction.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum QueryTaxonomy {
+    Factoid,
+    Summarization,
+    Analytical,
+    Coding,
+}
+
 /// Per-pipeline-stage latency breakdown in milliseconds.
 /// Stored in every Evidence Packet for operational debugging and SLO verification.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -251,6 +261,27 @@ pub struct Document {
     pub metadata: DocumentMetadata,
     /// ACL groups controlling who can retrieve chunks from this document.
     pub acl_groups: Vec<String>,
+}
+
+/// A request to explicitly ingest extracted entities and relations into the Graph Index.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphIngestRequest {
+    pub chunk_id: String,
+    pub entities: Vec<String>,
+    pub relations: Vec<RelationDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelationDto {
+    pub source: String,
+    pub target: String,
+    pub relation: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TreeSummaryRequest {
+    pub node_id: String,
+    pub summary: String,
 }
 
 /// Optional descriptive metadata attached to a document at ingestion time.

@@ -49,21 +49,7 @@ impl ColBertReranker {
         query_embeddings: &[Vec<f32>],
         doc_embeddings: &[Vec<f32>],
     ) -> f64 {
-        if query_embeddings.is_empty() || doc_embeddings.is_empty() {
-            return 0.0;
-        }
-
-        query_embeddings
-            .iter()
-            .map(|q_vec| {
-                doc_embeddings
-                    .iter()
-                    .map(|d_vec| {
-                        q_vec.iter().zip(d_vec.iter()).map(|(q, d)| (q * d) as f64).sum::<f64>()
-                    })
-                    .fold(f64::NEG_INFINITY, f64::max)
-            })
-            .sum()
+        sievrant_math::simd::fast_max_sim_score(query_embeddings, doc_embeddings)
     }
 
     fn encode_tokens(&self, text: &str, max_len: usize) -> Result<Vec<Vec<f32>>> {

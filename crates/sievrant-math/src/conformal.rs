@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use sievrant_core::{
     error::{CalibrationError, Result},
-    types::{Decision, SelectedEvidence},
+    types::{Decision, SelectedEvidence, QueryTaxonomy},
 };
 
 /// Non-conformity score for a single (query, chunk) pair.
@@ -13,7 +13,7 @@ use sievrant_core::{
 ///
 /// s(q, c) = 1 - combined_relevance(c)
 ///
-/// Weights: rerank 60%, rrf_score (clamped to [0,1]) 30%, structural bonus 10%.
+/// Weights: rerank 60%, rrf_score (clamped to \[0,1\]) 30%, structural bonus 10%.
 /// These are fixed defaults; a future per-corpus calibration step can tune them.
 pub fn nonconformity_score(
     rerank_score: f64,
@@ -38,6 +38,7 @@ pub struct CalibrationSet {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalibrationEntry {
     pub query: String,
+    pub taxonomy: QueryTaxonomy,
     pub relevant_chunk_ids: Vec<String>,
     /// Populated by running the pipeline against calibration queries.
     pub scores: Vec<CalibrationScore>,
@@ -50,6 +51,8 @@ pub struct CalibrationScore {
     pub is_relevant: bool,
 }
 
+use std::collections::HashMap;
+
 /// Constant number of quantized score bins (0.0000 to 1.0000).
 /// 10,000 bins provides 0.0001 precision, which is mathematically sufficient for conformal thresholds.
 const BINS: usize = 10_000;
@@ -59,8 +62,8 @@ const BINS: usize = 10_000;
 /// as new user feedback streams into the SaaS platform.
 #[derive(Debug, Clone)]
 pub struct OnlineCalibrationState {
-    tree: Vec<usize>,
-    total_relevant: usize,
+    trees: HashMap<QueryTaxonomy, Vec<usize>>,
+    total_relevant: HashMap<QueryTaxonomy, usize>,
 }
 
 impl Default for OnlineCalibrationState {
@@ -72,30 +75,35 @@ impl Default for OnlineCalibrationState {
 impl OnlineCalibrationState {
     pub fn new() -> Self {
         Self {
-            tree: vec![0; BINS + 1],
-            total_relevant: 0,
+            trees: HashMap::new(),
+            total_relevant: HashMap::new(),
         }
     }
 
     /// Insert a new calibration score in O(log B) time.
-    pub fn insert_score(&mut self, score: f64, is_relevant: bool) {
+    pub fn insert_score(&mut self, taxonomy: &QueryTaxonomy, score: f64, is_relevant: bool) {
         if !is_relevant {
             return;
         }
-        self.total_relevant += 1;
+        
+        let count = self.total_relevant.entry(taxonomy.clone()).or_insert(0);
+        *count += 1;
+        
+        let tree = self.trees.entry(taxonomy.clone()).or_insert_with(|| vec![0; BINS + 1]);
         
         let mut idx = (score * BINS as f64).round() as usize;
         idx = idx.clamp(0, BINS).min(BINS - 1) + 1; // 1-based indexing for Fenwick
         
         while idx <= BINS {
-            self.tree[idx] += 1;
+            tree[idx] += 1;
             idx += idx & idx.wrapping_neg(); 
         }
     }
 
     /// Compute the exact non-conformity threshold in O(log B) using binary lifting.
-    pub fn compute_threshold(&self, coverage_target: f64) -> Result<f64> {
-        if self.total_relevant == 0 {
+    pub fn compute_threshold(&self, taxonomy: &QueryTaxonomy, coverage_target: f64) -> Result<f64> {
+        let n = self.total_relevant.get(taxonomy).copied().unwrap_or(0);
+        if n == 0 {
             return Err(CalibrationError::InsufficientData {
                 min_required: 1,
                 provided: 0,
@@ -103,19 +111,19 @@ impl OnlineCalibrationState {
             .into());
         }
 
-        let n = self.total_relevant;
         let target_count = ((n as f64 + 1.0) * coverage_target).ceil() as usize;
         let target_count = target_count.min(n);
 
+        let tree = self.trees.get(taxonomy).unwrap();
         let mut idx = 0;
         let mut sum = 0;
         let mut bit_mask = 1 << BINS.ilog2();
 
         while bit_mask > 0 {
             let next_idx = idx + bit_mask;
-            if next_idx <= BINS && sum + self.tree[next_idx] < target_count {
+            if next_idx <= BINS && sum + tree[next_idx] < target_count {
                 idx = next_idx;
-                sum += self.tree[idx];
+                sum += tree[idx];
             }
             bit_mask >>= 1;
         }
@@ -129,14 +137,14 @@ impl OnlineCalibrationState {
 ///
 /// Wraps the batch `CalibrationSet` into the `OnlineCalibrationState` to utilize
 /// the $O(\log B)$ Fenwick Tree binary lifting algorithm.
-pub fn compute_threshold(calibration_set: &CalibrationSet, coverage_target: f64) -> Result<f64> {
+pub fn compute_threshold(calibration_set: &CalibrationSet, taxonomy: &QueryTaxonomy, coverage_target: f64) -> Result<f64> {
     let mut state = OnlineCalibrationState::new();
     for entry in &calibration_set.entries {
         for score in &entry.scores {
-            state.insert_score(score.nonconformity_score, score.is_relevant);
+            state.insert_score(&entry.taxonomy, score.nonconformity_score, score.is_relevant);
         }
     }
-    state.compute_threshold(coverage_target)
+    state.compute_threshold(taxonomy, coverage_target)
 }
 
 /// Output of the conformal gate.
@@ -196,23 +204,23 @@ pub struct CoverageReport {
     pub within_tolerance: bool,
 }
 
-/// Verify that the conformal coverage guarantee holds on a held-out test split.
-///
-/// Derives the threshold from `calibration_set` and measures what fraction of
-/// truly relevant chunks in `test_set` fall below it. This is the non-negotiable
-/// correctness check; it must hold before any deployment.
+/// Verify that the conformal coverage guarantee holds on a held-out test split for a given taxonomy.
 pub fn verify_coverage(
     calibration_set: &CalibrationSet,
     test_set: &CalibrationSet,
+    taxonomy: &QueryTaxonomy,
     coverage_target: f64,
     tolerance: f64,
 ) -> CoverageReport {
-    let threshold = compute_threshold(calibration_set, coverage_target).unwrap_or(1.0);
+    let threshold = compute_threshold(calibration_set, taxonomy, coverage_target).unwrap_or(1.0);
 
     let mut covered = 0usize;
     let mut total = 0usize;
 
     for entry in &test_set.entries {
+        if &entry.taxonomy != taxonomy {
+            continue;
+        }
         for score in &entry.scores {
             if score.is_relevant {
                 total += 1;
@@ -247,6 +255,7 @@ mod tests {
     fn make_calibration_set(id: &str, scores: &[(f64, bool)]) -> CalibrationSet {
         let entry = CalibrationEntry {
             query: "test query".into(),
+            taxonomy: QueryTaxonomy::Factoid,
             relevant_chunk_ids: vec![],
             scores: scores
                 .iter()
@@ -270,7 +279,7 @@ mod tests {
         // 100 relevant chunks with scores 0.01, 0.02, ..., 1.00
         let scores: Vec<(f64, bool)> = (1..=100).map(|i| (i as f64 * 0.01, true)).collect();
         let cal = make_calibration_set("cal1", &scores);
-        let threshold = compute_threshold(&cal, 0.95).unwrap();
+        let threshold = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95).unwrap();
 
         // At 95% coverage the threshold should be at or above the 95th percentile
         // of the relevant scores, which is 0.95.
@@ -292,7 +301,7 @@ mod tests {
         let cal = make_calibration_set("cal", &cal_scores);
         let test = make_calibration_set("test", &test_scores);
 
-        let report = verify_coverage(&cal, &test, 0.90, 0.05);
+        let report = verify_coverage(&cal, &test, &QueryTaxonomy::Factoid, 0.90, 0.05);
         assert!(
             report.empirical_coverage >= 0.85,
             "coverage too low: {}",
@@ -366,9 +375,9 @@ mod tests {
         let scores: Vec<(f64, bool)> = (0..100).map(|i| (i as f64 * 0.01, true)).collect();
         let cal = make_calibration_set("cal_mono", &scores);
 
-        let t90 = compute_threshold(&cal, 0.90).unwrap();
-        let t95 = compute_threshold(&cal, 0.95).unwrap();
-        let t99 = compute_threshold(&cal, 0.99).unwrap();
+        let t90 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.90).unwrap();
+        let t95 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95).unwrap();
+        let t99 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.99).unwrap();
 
         assert!(t90 <= t95, "threshold must be non-decreasing: t90={t90} t95={t95}");
         assert!(t95 <= t99, "threshold must be non-decreasing: t95={t95} t99={t99}");
@@ -381,7 +390,7 @@ mod tests {
             entries: vec![],
             created_at: Utc::now(),
         };
-        let result = compute_threshold(&cal, 0.95);
+        let result = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95);
         assert!(result.is_err());
     }
 
@@ -395,8 +404,8 @@ mod tests {
             let scores: Vec<(f64, bool)> = (0..n).map(|i| (i as f64 / n as f64, true)).collect();
             let cal = make_calibration_set("prop_cal", &scores);
 
-            let ta = compute_threshold(&cal, coverage_a).unwrap();
-            let tb = compute_threshold(&cal, coverage_b).unwrap();
+            let ta = compute_threshold(&cal, &QueryTaxonomy::Factoid, coverage_a).unwrap();
+            let tb = compute_threshold(&cal, &QueryTaxonomy::Factoid, coverage_b).unwrap();
             prop_assert!(
                 ta <= tb + 1e-10,
                 "threshold not monotone: coverage_a={coverage_a} ta={ta}, coverage_b={coverage_b} tb={tb}"

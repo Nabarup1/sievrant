@@ -1,0 +1,17 @@
+[package]
+name = "sievrant-python"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "sievrant_python"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.20", features = ["extension-module", "abi3-py310"] }
+pyo3-asyncio = { version = "0.20", features = ["tokio-runtime"] }
+sievrant = { workspace = true }
+sievrant-core = { workspace = true }
+sievrant-orchestrator = { workspace = true }
+tokio = { workspace = true, features = ["full"] }

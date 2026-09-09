@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::RwLock;
 
-use sievrant_core::error::Result;
+
 
 use crate::metering::UsageRecord;
 

@@ -16,6 +16,7 @@ thiserror = { workspace = true }
 chrono = { workspace = true }
 ort = { workspace = true }
 sievrant-core = { workspace = true }
+sievrant-math = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

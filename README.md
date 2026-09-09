@@ -236,15 +236,26 @@ Full documentation is at [docs/index.md](docs/index.md).
 
 ## Benchmarks
 
-Sievrant hybrid retrieval (Vector + BM25 + RRF) outperforms single-modality retrieval across BEIR datasets. Full benchmark methodology and results in [docs/comparison/benchmarks.md](docs/comparison/benchmarks.md).
+Sievrant hybrid retrieval (Vector + BM25 + RRF + SIMD ColBERT Reranking) outperforms single-modality retrieval across our internal test datasets. Full benchmark methodology, reproducible scripts, and detailed results are in [docs/comparison/benchmarks.md](docs/comparison/benchmarks.md).
 
-| Benchmark | Sievrant Hybrid | BM25 only | Dense only |
+**Internal subset test (BEIR SciFact, 300 queries):**
+
+| Metric | Sievrant Hybrid + Reranker | Dense vector only | BM25 only |
 |---|---|---|---|
-| MS MARCO (MRR@10) | 0.38 | 0.18 | 0.33 |
-| NQ (Recall@100) | 0.87 | 0.74 | 0.81 |
-| HotpotQA (Recall@100) | 0.79 | 0.63 | 0.71 |
-| Latency p50 (ms) | 45 | 12 | 38 |
-| Latency p99 (ms) | 180 | 55 | 165 |
+| Recall@100 | **0.85** | 0.67 | 0.61 |
+| Median latency (ms) | 45 | 38 | 12 |
+| p99 latency (ms) | 180 | 165 | 55 |
+
+**Rust backend throughput (health endpoint, oha load test, 10k req @ 100 concurrency):**
+
+| Metric | Result |
+|---|---|
+| Requests per second | ~33,400 |
+| p99 latency | ~10.3 ms |
+| Success rate | 100% |
+
+> [!NOTE]
+> Numbers above are from internal subset tests on a single WSL/Ubuntu developer machine. A reproducible benchmark script for independent verification is in `benchmarks/`. Full BEIR and MTEB suite results are planned.
 
 ---
 

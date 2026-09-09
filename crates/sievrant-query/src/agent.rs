@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::Serialize;
 use tracing::{debug, info, warn};
 
-use sievrant_core::error::{Result, SievrantError};
+use sievrant_core::error::Result;
 use sievrant_core::types::EvidenceChunk;
 
 /// Accumulated state for a single multi-hop retrieval session.

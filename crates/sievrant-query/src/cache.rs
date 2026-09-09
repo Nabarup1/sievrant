@@ -220,7 +220,8 @@ impl SemanticCache {
 
     fn is_expired(&self, entry: &CacheEntry) -> bool {
         let age = Utc::now() - entry.created_at;
-        age.num_milliseconds() > (self.config.ttl_seconds as i64) * 1000
+        // use >= so that a TTL of 0 immediately expires entries
+        age.num_milliseconds() >= (self.config.ttl_seconds as i64) * 1000
     }
 
     fn compute_hash(&self, query: &str, corpus: &str, user_id: &Option<String>) -> u64 {

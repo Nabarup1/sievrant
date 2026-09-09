@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use reqwest::StatusCode;
 use serde_json::Value;
-use tracing::{debug, warn};
+use tracing::warn;
 
 use sievrant_core::error::{LlmError, Result, SievrantError};
 

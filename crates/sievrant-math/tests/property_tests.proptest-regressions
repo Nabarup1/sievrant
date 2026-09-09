@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 08902cce5e07dada710ea622b2392e3bd11178ef4cfacf17d2228dc0a4b68bff # shrinks to mut list = [RankedCandidate { chunk_id: "844x", score: 10.0, retriever: VectorIndex, text: "test", metadata: ChunkMetadata { doc_id: "doc1", source_doc: "doc1", doc_version_hash: "hash", path: [], page: None, char_span: None, ingested_at: 2026-09-09T12:36:52.971043609Z, index_generation: 1, acl_groups: [], token_count: 10 } }, RankedCandidate { chunk_id: "844x", score: 2.4650054846255097e-235, retriever: VectorIndex, text: "test", metadata: ChunkMetadata { doc_id: "doc1", source_doc: "doc1", doc_version_hash: "hash", path: [], page: None, char_span: None, ingested_at: 2026-09-09T12:36:52.971047383Z, index_generation: 1, acl_groups: [], token_count: 10 } }]

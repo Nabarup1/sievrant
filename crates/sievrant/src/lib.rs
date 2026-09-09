@@ -1,3 +1,6 @@
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
+
 //! # Sievrant Core SDK
 //!
 //! This crate provides the primary high-level interface for interacting with Sievrant,
@@ -19,33 +22,139 @@ pub use sievrant_core::types::{
     Decision, Document, DocumentMetadata, EvidencePacket, RetrievalConfig, Route, RouteStrategy,
 };
 
-use sievrant_llm::LlmProvider;
+mod noop;
+
+use sievrant_llm::{openai::OpenAiCompatible, LlmProvider};
 use sievrant_orchestrator::{
     corpus::{CorpusManager, CorpusMetadata},
-    pipeline::RetrievalOrchestrator,
+    pipeline::{IndexSet, RetrievalOrchestrator},
 };
+use sievrant_index::{
+    vector::{VectorIndex, VectorIndexConfig, VectorBackendConfig},
+    bm25::{Bm25Index, Bm25IndexConfig},
+    tree::{TreeIndex, TreeIndexConfig},
+    graph::{GraphIndex, GraphIndexConfig},
+};
+use sievrant_query::{
+    processing::{QueryProcessor, QueryProcessingConfig},
+    router::{QueryRouter, RoutingConfig},
+};
+use sievrant_acl::resolver::InMemoryAclResolver;
+use sievrant_rerank::TermOverlapReranker;
+use sievrant_llm::embeddings::OpenAiEmbeddingProvider;
+use async_trait::async_trait;
+
+use std::path::PathBuf;
+
+/// Adapter to bridge the duplicated EmbeddingProvider traits across crates
+struct EmbeddingProviderWrapper {
+    inner: OpenAiEmbeddingProvider,
+}
+
+#[async_trait]
+impl sievrant_query::EmbeddingProvider for EmbeddingProviderWrapper {
+    async fn embed(&self, texts: &[String]) -> sievrant_core::error::Result<Vec<Vec<f32>>> {
+        use sievrant_llm::embeddings::EmbeddingProvider;
+        self.inner.embed_batch(texts).await
+    }
+    
+    fn dimensions(&self) -> usize {
+        use sievrant_llm::embeddings::EmbeddingProvider;
+        self.inner.dimensions()
+    }
+}
 
 /// A handle to a loaded Corpus. Provides the primary entrypoint for retrieving
 /// documents and managing corpus data.
 pub struct Corpus {
+    /// The unique namespace identifier for this corpus.
     pub name: String,
+    /// The pipeline orchestrator responsible for routing queries.
     pub orchestrator: Arc<RetrievalOrchestrator>,
+    /// The state manager for tracking corpus metadata and schema.
     pub corpus_manager: Arc<CorpusManager>,
 }
 
 impl Corpus {
+    async fn build_orchestrator(name: &str, _config: &SievrantConfig) -> Result<Arc<RetrievalOrchestrator>> {
+        let llm = Arc::new(OpenAiCompatible::openai("dummy_key", "gpt-4o"));
+        
+        let vector_config = VectorIndexConfig {
+            backend: VectorBackendConfig::Memory,
+            ..Default::default()
+        };
+        let vector = Arc::new(VectorIndex::new(vector_config).await.map_err(|e| sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(e.to_string())))?);
+        
+        let mut bm25_config = Bm25IndexConfig::default();
+        bm25_config.index_dir = PathBuf::from(format!("data/{}/bm25", name));
+        let bm25 = Arc::new(Bm25Index::new(bm25_config).map_err(|e| sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(e.to_string())))?);
+        
+        // Ensure tree and graph configs don't conflict (they use Memory for now, but in case they write to disk)
+        let tree = Arc::new(TreeIndex::new(TreeIndexConfig::default()));
+        let graph = Arc::new(GraphIndex::new(GraphIndexConfig::default()));
+        
+        let indexes = IndexSet {
+            vector,
+            bm25,
+            tree,
+            graph,
+        };
+        
+        let orchestrator = RetrievalOrchestrator {
+            cache: Arc::new(noop::NoopCache),
+            router: Arc::new(QueryRouter::new(RoutingConfig::default())),
+            query_processor: Arc::new(QueryProcessor::new(
+                llm.clone(), 
+                Arc::new(EmbeddingProviderWrapper { inner: OpenAiEmbeddingProvider::new("dummy", "text-embedding-ada-002") }), 
+                QueryProcessingConfig::default()
+            )),
+            acl_resolver: Arc::new(InMemoryAclResolver::new()),
+            indexes,
+            reranker: Arc::new(TermOverlapReranker),
+            calibration: Arc::new(noop::NoopCalibration),
+            llm: llm.clone(),
+            coverage_monitor: Arc::new(noop::NoopCoverage),
+            search_limit: 100,
+            min_evidence_count: 3,
+        };
+        
+        Ok(Arc::new(orchestrator))
+    }
+
     /// Create a new corpus with the given configuration.
-    pub async fn create(_name: &str, _config: SievrantConfig) -> Result<Self> {
-        // In a full implementation, SievrantConfig would be used to instantiate
-        // the index set, LLM provider, cache, and orchestrator components.
-        // For the scaffolding, we assume CorpusManager is injected or globally accessible.
-        // Here we mock the initialization for API demonstration purposes.
-        unimplemented!("Full corpus initialization requires wired backend components")
+    pub async fn create(name: &str, config: SievrantConfig) -> Result<Self> {
+        let orchestrator = Self::build_orchestrator(name, &config).await?;
+        let corpus_manager = Arc::new(
+            CorpusManager::new(PathBuf::from(format!("data/{}", name)))?
+        );
+        
+        // This fails if it already exists
+        corpus_manager.create(name, None)?;
+            
+        Ok(Self {
+            name: name.to_string(),
+            orchestrator,
+            corpus_manager,
+        })
     }
 
     /// Open an existing corpus.
-    pub async fn open(_name: &str, _config: SievrantConfig) -> Result<Self> {
-        unimplemented!("Full corpus opening requires wired backend components")
+    pub async fn open(name: &str, config: SievrantConfig) -> Result<Self> {
+        let orchestrator = Self::build_orchestrator(name, &config).await?;
+        let corpus_manager = Arc::new(
+            CorpusManager::new(PathBuf::from(format!("data/{}", name)))?
+        );
+        
+        // Ensure it exists
+        if corpus_manager.get(name).is_none() {
+            return Err(sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(format!("Corpus '{}' not found", name))));
+        }
+
+        Ok(Self {
+            name: name.to_string(),
+            orchestrator,
+            corpus_manager,
+        })
     }
 
     /// Retrieve corpus statistics and metadata.
@@ -160,7 +269,39 @@ mod tests {
         assert!(config.user_id.is_none());
         assert!(!config.skip_cache);
 
-        // A mock corpus isn't constructible here due to Arc<RetrievalOrchestrator> 
         // dependencies, but the builder pattern is structurally sound.
+    }
+
+    #[tokio::test]
+    async fn create_opens_and_retrieves() {
+        // Use a unique name to avoid conflicts if tests run in parallel
+        let corpus_name = "test-embed-corpus";
+        
+        // Clean up from previous test runs
+        let _ = std::fs::remove_dir_all(format!("data/{}", corpus_name));
+        
+        {
+            let corpus = Corpus::create(corpus_name, SievrantConfig::default())
+                .await
+                .expect("create should succeed");
+            assert_eq!(corpus.name, corpus_name);
+            // corpus goes out of scope here, releasing tantivy writer lock
+        }
+        
+        // Open the same corpus
+        let reopened = Corpus::open(corpus_name, SievrantConfig::default())
+            .await
+            .expect("open should succeed");
+        
+        assert_eq!(reopened.name, corpus_name);
+        
+        // Clean up
+        let _ = std::fs::remove_dir_all(format!("data/{}", corpus_name));
+    }
+
+    #[tokio::test]
+    async fn open_nonexistent_corpus_returns_not_found() {
+        let result = Corpus::open("does-not-exist-12345", SievrantConfig::default()).await;
+        assert!(result.is_err());
     }
 }

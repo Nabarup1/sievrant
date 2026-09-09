@@ -1,6 +1,8 @@
 use rustc_hash::FxHashMap;
 
-use sievrant_core::types::{ChunkMetadata, FusedCandidate, RankedCandidate, RetrieverType};
+use sievrant_core::types::{FusedCandidate, RankedCandidate};
+#[cfg(test)]
+use sievrant_core::types::ChunkMetadata;
 
 /// Reciprocal Rank Fusion (Cormack, Clarke, Buettcher, 2009)
 ///

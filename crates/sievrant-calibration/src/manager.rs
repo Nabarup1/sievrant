@@ -4,6 +4,7 @@ use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
 
 use sievrant_core::error::{CalibrationError, Result, SievrantError};
+use sievrant_core::types::QueryTaxonomy;
 use sievrant_math::conformal::{CalibrationEntry, CalibrationScore, CalibrationSet as MathCalSet, compute_threshold};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +116,7 @@ impl CalibrationManager {
             id: "onboarding".into(),
             entries: vec![CalibrationEntry {
                 query: "calibration".into(),
+                taxonomy: QueryTaxonomy::Factoid,
                 relevant_chunk_ids: vec![],
                 scores: train_scores.iter().map(|&s| CalibrationScore {
                     chunk_id: String::new(),
@@ -125,9 +127,9 @@ impl CalibrationManager {
             created_at: chrono::Utc::now(),
         };
 
-        let t90 = compute_threshold(&cal_set, 0.90)?;
-        let t95 = compute_threshold(&cal_set, 0.95)?;
-        let t99 = compute_threshold(&cal_set, 0.99)?;
+        let t90 = compute_threshold(&cal_set, &QueryTaxonomy::Factoid, 0.90)?;
+        let t95 = compute_threshold(&cal_set, &QueryTaxonomy::Factoid, 0.95)?;
+        let t99 = compute_threshold(&cal_set, &QueryTaxonomy::Factoid, 0.99)?;
 
         // 5. Verify on holdout set (mocked: assume scores are uniformly distributed)
         let val_scores: Vec<f64> = val_obs

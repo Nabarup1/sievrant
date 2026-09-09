@@ -1,5 +1,5 @@
 use proptest::prelude::*;
-use sievrant_core::types::{ChunkMetadata, RankedCandidate, RetrieverType, RerankedCandidate};
+use sievrant_core::types::{ChunkMetadata, RankedCandidate, RetrieverType, RerankedCandidate, QueryTaxonomy};
 use sievrant_math::{
     conformal::{compute_threshold, CalibrationSet, CalibrationEntry, CalibrationScore},
     rrf::reciprocal_rank_fusion,
@@ -9,6 +9,7 @@ use sievrant_math::{
 fn make_calibration_set(id: &str, scores: &[f64]) -> CalibrationSet {
     let entry = CalibrationEntry {
         query: "test query".into(),
+        taxonomy: QueryTaxonomy::Factoid,
         relevant_chunk_ids: vec![],
         scores: scores
             .iter()
@@ -104,6 +105,9 @@ proptest! {
         // Sort descending to simulate a ranked list
         list.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
         
+        let mut seen = std::collections::HashSet::new();
+        list.retain(|c| seen.insert(c.chunk_id.clone()));
+        
         let fused = reciprocal_rank_fusion(&[list.clone()], 60);
         
         // Output should have exactly the same ordering of chunk_ids
@@ -129,9 +133,9 @@ proptest! {
     ) {
         // For two coverage targets where A < B, Threshold(A) <= Threshold(B)
         let cal = make_calibration_set("prop", &scores);
-        let t_90 = compute_threshold(&cal, 0.90).unwrap();
-        let t_95 = compute_threshold(&cal, 0.95).unwrap();
-        let t_99 = compute_threshold(&cal, 0.99).unwrap();
+        let t_90 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.90).unwrap();
+        let t_95 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95).unwrap();
+        let t_99 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.99).unwrap();
         
         prop_assert!(t_90 <= t_95, "Threshold not monotonic: t90={} > t95={}", t_90, t_95);
         prop_assert!(t_95 <= t_99, "Threshold not monotonic: t95={} > t99={}", t_95, t_99);
@@ -174,7 +178,7 @@ fn correctness_conformal_coverage_audit() {
     
     let cal = make_calibration_set("test", &cal_scores);
     let target_coverage = 0.95;
-    let threshold = compute_threshold(&cal, target_coverage).unwrap();
+    let threshold = compute_threshold(&cal, &QueryTaxonomy::Factoid, target_coverage).unwrap();
     
     // Evaluate coverage on the same set (in practice this would be a holdout set, 
     // but exchangeability guarantees hold in expectation)

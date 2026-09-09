@@ -37,9 +37,11 @@ pub struct IndexSet {
     pub graph: Arc<dyn RetrievalIndex>,
 }
 
+use sievrant_core::types::QueryTaxonomy;
+
 /// Conformal calibration manager: returns the current threshold for a corpus.
 pub trait CalibrationManager: Send + Sync {
-    fn threshold(&self, corpus: &str) -> f64;
+    fn threshold(&self, corpus: &str, taxonomy: &QueryTaxonomy) -> f64;
 }
 
 /// Semantic cache: stores and retrieves EvidencePackets by query fingerprint.
@@ -65,6 +67,19 @@ pub trait SemanticCache: Send + Sync {
 pub trait CoverageMonitor: Send + Sync {
     fn record(&self, corpus: &str, covered: bool);
     fn empirical_coverage_30d(&self, corpus: &str) -> Option<f64>;
+}
+
+fn classify_query_taxonomy(query: &str) -> QueryTaxonomy {
+    let q = query.to_lowercase();
+    if q.contains("code") || q.contains("function") || q.contains("struct") || q.contains("impl") {
+        QueryTaxonomy::Coding
+    } else if q.contains("summarize") || q.contains("summary") || q.contains("overview") || q.len() > 150 {
+        QueryTaxonomy::Summarization
+    } else if q.contains("why") || q.contains("how") || q.contains("analyze") || q.contains("compare") {
+        QueryTaxonomy::Analytical
+    } else {
+        QueryTaxonomy::Factoid
+    }
 }
 
 /// Central 10-stage retrieval pipeline.
@@ -96,6 +111,8 @@ impl RetrievalOrchestrator {
         let query_id = QueryId::new();
         let pipeline_start = std::time::Instant::now();
         let mut stages_ms = RetrievalStagesMs::default();
+
+        let taxonomy = classify_query_taxonomy(query);
 
         // Stage 1: Semantic cache check
         let t = std::time::Instant::now();
@@ -156,7 +173,7 @@ impl RetrievalOrchestrator {
 
         // Stage 9: Conformal gate
         let t = std::time::Instant::now();
-        let threshold = self.calibration.threshold(corpus);
+        let threshold = self.calibration.threshold(corpus, &taxonomy);
 
         for chunk in &mut selected {
             chunk.nonconformity_score = nonconformity_score(

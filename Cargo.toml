@@ -19,6 +19,8 @@ members = [
     "crates/sievrant-server",
     "crates/sievrant-cli",
     "crates/sievrant",
+    "crates/sievrant-python",
+    "crates/sievrant-node",
 ]
 
 [workspace.package]
@@ -110,3 +112,5 @@ sievrant-calibration = { path = "crates/sievrant-calibration" }
 sievrant-server = { path = "crates/sievrant-server" }
 sievrant-cli = { path = "crates/sievrant-cli" }
 sievrant = { path = "crates/sievrant" }
+sievrant-python = { path = "crates/sievrant-python" }
+sievrant-node = { path = "crates/sievrant-node" }

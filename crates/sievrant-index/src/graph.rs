@@ -141,6 +141,63 @@ impl KnowledgeGraph {
         }
     }
 
+    /// Explicitly ingest entities and relations from an external extractor.
+    pub fn ingest_entities(
+        &mut self,
+        chunk_id: &str,
+        entities: &[String],
+        relations: &[(String, String, String)],
+    ) {
+        let meta = ChunkMetadata {
+            doc_id: chunk_id.split(':').next().unwrap_or("").to_string(),
+            source_doc: "".into(),
+            doc_version_hash: "".into(),
+            path: vec![],
+            page: None,
+            char_span: None,
+            ingested_at: chrono::Utc::now(),
+            index_generation: 0,
+            acl_groups: vec![],
+            token_count: 0,
+        };
+        let chunk_idx = self.get_or_insert_chunk(chunk_id, &meta);
+
+        for entity in entities {
+            let entity_idx = self.get_or_insert_entity(entity);
+            let edge = GraphEdge {
+                relation: "mentions".to_string(),
+                weight: 1.0,
+            };
+            self.graph.add_edge(chunk_idx, entity_idx, edge.clone());
+            self.graph.add_edge(entity_idx, chunk_idx, edge);
+        }
+
+        for (src, dst, rel) in relations {
+            let src_idx = self.get_or_insert_entity(src);
+            let dst_idx = self.get_or_insert_entity(dst);
+            let edge = GraphEdge {
+                relation: rel.clone(),
+                weight: 1.0,
+            };
+            self.graph.add_edge(src_idx, dst_idx, edge);
+        }
+    }
+
+    /// Detect hierarchical communities (Louvain/Leiden approximation via SCC).
+    /// Returns a map from node ID to its community ID.
+    pub fn detect_communities(&self) -> HashMap<String, usize> {
+        let mut communities = HashMap::new();
+        // Tarjan's Strongly Connected Components
+        let scc = petgraph::algo::tarjan_scc(&self.graph);
+        for (community_id, component) in scc.into_iter().enumerate() {
+            for node_idx in component {
+                let node = &self.graph[node_idx];
+                communities.insert(node.id.clone(), community_id);
+            }
+        }
+        communities
+    }
+
     /// Personalized PageRank via power iteration.
     ///
     /// Formula: x_new = alpha * (D_inv * A * x) + (1 - alpha) * v
@@ -321,6 +378,21 @@ impl GraphIndex {
             config,
         }
     }
+
+    pub fn ingest_entities(
+        &self,
+        chunk_id: &str,
+        entities: &[String],
+        relations: &[(String, String, String)],
+    ) {
+        let mut graph = self.graph.write().unwrap();
+        graph.ingest_entities(chunk_id, entities, relations);
+    }
+
+    pub fn detect_communities(&self) -> HashMap<String, usize> {
+        let graph = self.graph.read().unwrap();
+        graph.detect_communities()
+    }
 }
 
 #[async_trait]
@@ -414,6 +486,16 @@ impl RetrievalIndex for GraphIndex {
 
     fn index_type(&self) -> RetrieverType {
         RetrieverType::GraphIndex
+    }
+
+    async fn ingest_graph_entities(
+        &self,
+        chunk_id: &str,
+        entities: &[String],
+        relations: &[(String, String, String)],
+    ) -> Result<()> {
+        self.ingest_entities(chunk_id, entities, relations);
+        Ok(())
     }
 }
 

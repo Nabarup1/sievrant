@@ -8,7 +8,7 @@ struct Cli {
     #[arg(short, long, default_value = "http://localhost:8080")]
     url: String,
 
-    #[arg(short, long, env = "SIEVRANT_API_KEY")]
+    #[arg(short, long)]
     token: Option<String>,
 
     #[command(subcommand)]

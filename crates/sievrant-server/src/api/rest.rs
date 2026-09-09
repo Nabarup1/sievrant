@@ -110,15 +110,46 @@ pub struct IngestResponse {
     pub failed: usize,
 }
 
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct GraphIngestPayload {
+    pub corpus: String,
+    pub requests: Vec<sievrant_core::types::GraphIngestRequest>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct GraphIngestResponse {
+    pub corpus: String,
+    pub ingested: usize,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct TreeSummaryPayload {
+    pub corpus: String,
+    pub requests: Vec<sievrant_core::types::TreeSummaryRequest>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TreeSummaryResponse {
+    pub corpus: String,
+    pub ingested: usize,
+}
+
 #[derive(OpenApi)]
 #[openapi(
     paths(
         query_handler,
         ingest_handler,
+        graph_ingest_handler,
+        tree_summary_handler,
         health_handler
     ),
     components(
-        schemas(QueryPayload, QueryResponse, IngestPayload, IngestDocument, IngestResponse)
+        schemas(
+            QueryPayload, QueryResponse, 
+            IngestPayload, IngestDocument, IngestResponse, 
+            GraphIngestPayload, GraphIngestResponse,
+            TreeSummaryPayload, TreeSummaryResponse
+        )
     ),
     tags(
         (name = "sievrant", description = "Sievrant Retrieval Engine API")
@@ -239,6 +270,119 @@ pub async fn ingest_handler(
 }
 
 #[utoipa::path(
+    post,
+    path = "/v1/graph/ingest",
+    request_body = GraphIngestPayload,
+    responses(
+        (status = 202, description = "Graph data accepted", body = GraphIngestResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Corpus not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn graph_ingest_handler(
+    State(state): State<AppState>,
+    Extension(tenant): Extension<TenantContext>,
+    axum::Json(payload): axum::Json<GraphIngestPayload>,
+) -> impl IntoResponse {
+    info!(
+        tenant_id = %tenant.tenant_id,
+        corpus = %payload.corpus,
+        req_count = payload.requests.len(),
+        "handling graph ingest"
+    );
+
+    let corpus = {
+        let lock = state.corpora.read().unwrap();
+        match lock.get(&payload.corpus) {
+            Some(c) => Arc::clone(c),
+            None => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({
+                        "error": "corpus_not_found",
+                        "message": format!("Corpus '{}' is not registered", payload.corpus)
+                    })),
+                ).into_response();
+            }
+        }
+    };
+
+    let graph_index = &corpus.orchestrator.indexes.graph;
+    for req in &payload.requests {
+        let relations: Vec<(String, String, String)> = req.relations.iter().map(|r| {
+            (r.source.clone(), r.target.clone(), r.relation.clone())
+        }).collect();
+        let _ = graph_index.ingest_graph_entities(&req.chunk_id, &req.entities, &relations).await;
+    }
+
+    (
+        StatusCode::ACCEPTED,
+        Json(GraphIngestResponse {
+            corpus: payload.corpus,
+            ingested: payload.requests.len(),
+        }),
+    ).into_response()
+}
+
+#[utoipa::path(
+    post,
+    path = "/v1/tree/summary",
+    request_body = TreeSummaryPayload,
+    responses(
+        (status = 202, description = "Tree summaries accepted", body = TreeSummaryResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Corpus not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn tree_summary_handler(
+    State(state): State<AppState>,
+    Extension(tenant): Extension<TenantContext>,
+    axum::Json(payload): axum::Json<TreeSummaryPayload>,
+) -> impl IntoResponse {
+    info!(
+        tenant_id = %tenant.tenant_id,
+        corpus = %payload.corpus,
+        req_count = payload.requests.len(),
+        "handling tree summary ingest"
+    );
+
+    let corpus = {
+        let lock = state.corpora.read().unwrap();
+        match lock.get(&payload.corpus) {
+            Some(c) => std::sync::Arc::clone(c),
+            None => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(serde_json::json!({
+                        "error": "corpus_not_found",
+                        "message": format!("Corpus '{}' is not registered", payload.corpus)
+                    })),
+                ).into_response();
+            }
+        }
+    };
+
+    let tree_index = &corpus.orchestrator.indexes.tree;
+    for req in &payload.requests {
+        let _ = tree_index.ingest_tree_summary(&req.node_id, req.summary.clone()).await;
+    }
+
+    (
+        StatusCode::ACCEPTED,
+        Json(TreeSummaryResponse {
+            corpus: payload.corpus,
+            ingested: payload.requests.len(),
+        }),
+    ).into_response()
+}
+
+#[utoipa::path(
     get,
     path = "/v1/health",
     responses(
@@ -258,6 +402,8 @@ pub fn build_router(state: AppState) -> Router {
     let protected = Router::new()
         .route("/v1/query", post(query_handler))
         .route("/v1/ingest", post(ingest_handler))
+        .route("/v1/graph/ingest", post(graph_ingest_handler))
+        .route("/v1/tree/summary", post(tree_summary_handler))
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth_middleware));
 
     let public = Router::new()

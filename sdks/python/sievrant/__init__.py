@@ -25,6 +25,9 @@ from sievrant.exceptions import (
     SievrantTimeoutError,
     SievrantAbstainedError,
 )
+from sievrant.graphrag import EntityExtractor
+from sievrant.dspy_optimizer import PromptOptimizer
+from sievrant.raptor import TreeSummarizer
 
 __all__ = [
     "SievrantClient",
@@ -44,6 +47,9 @@ __all__ = [
     "SievrantServerError",
     "SievrantTimeoutError",
     "SievrantAbstainedError",
+    "EntityExtractor",
+    "PromptOptimizer",
+    "TreeSummarizer",
 ]
 
 __version__ = "0.1.0"

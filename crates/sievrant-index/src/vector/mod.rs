@@ -36,6 +36,23 @@ pub trait RetrievalIndex: Send + Sync {
     async fn insert(&self, chunks: &[IndexChunk]) -> Result<()>;
     async fn delete(&self, chunk_ids: &[String]) -> Result<()>;
     fn index_type(&self) -> RetrieverType;
+    
+    async fn ingest_graph_entities(
+        &self,
+        _chunk_id: &str,
+        _entities: &[String],
+        _relations: &[(String, String, String)],
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    async fn ingest_tree_summary(
+        &self,
+        _node_id: &str,
+        _summary: String,
+    ) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[async_trait]

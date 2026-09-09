@@ -4,13 +4,27 @@
  */
 
 /** Outcome of a single retrieval call. */
-export type Decision = 'ANSWERED' | 'ABSTAINED' | 'EVIDENCE_ONLY';
+export enum Decision {
+  ANSWERED = 'ANSWERED',
+  ABSTAINED = 'ABSTAINED',
+  EVIDENCE_ONLY = 'EVIDENCE_ONLY'
+}
 
 /** Which pipeline path the query took. */
-export type Route = 'FAST' | 'STANDARD' | 'SLOW' | 'CACHED';
+export enum Route {
+  FAST = 'FAST',
+  STANDARD = 'STANDARD',
+  SLOW = 'SLOW',
+  CACHED = 'CACHED'
+}
 
 /** Which index contributed a specific evidence chunk. */
-export type RetrieverType = 'vector_index' | 'bm25_index' | 'tree_index' | 'graph_index';
+export enum RetrieverType {
+  VECTOR_INDEX = 'VECTOR_INDEX',
+  BM25 = 'BM25',
+  GRAPH = 'GRAPH',
+  TREE = 'TREE'
+}
 
 /** Per-pipeline-stage latency breakdown in milliseconds. */
 export interface RetrievalStagesMs {
