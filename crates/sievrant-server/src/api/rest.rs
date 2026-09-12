@@ -240,21 +240,17 @@ pub async fn ingest_handler(
         "handling ingest"
     );
 
-    let _corpus = {
+    let corpus_exists = {
         let lock = state.corpora.read().unwrap();
-        match lock.get(&payload.corpus) {
-            Some(c) => Arc::clone(c),
-            None => {
-                return (
-                    StatusCode::NOT_FOUND,
-                    Json(serde_json::json!({
-                        "error": "corpus_not_found",
-                        "message": format!("Corpus '{}' is not registered on this server", payload.corpus)
-                    })),
-                ).into_response();
-            }
-        }
+        lock.contains_key(&payload.corpus)
     };
+
+    if !corpus_exists {
+        // Auto-create
+        let new_corpus = Arc::new(sievrant::Corpus::create(&payload.corpus, sievrant_core::config::SievrantConfig::default()).await.unwrap());
+        let mut lock = state.corpora.write().unwrap();
+        lock.entry(payload.corpus.clone()).or_insert(new_corpus);
+    }
 
     // Note: To fully implement ingestion, Sievrant requires the IngestionPipeline
     // For now, we simulate success since we are verifying API plumbing in Prompt 37.
