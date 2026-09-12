@@ -36,22 +36,31 @@ pub struct OpenAiEmbeddingProvider {
     client: ResilientHttpClient,
     api_key: String,
     model: String,
+    base_url: String,
     /// Cached dimension count for the configured model.
     dims: usize,
 }
 
 impl OpenAiEmbeddingProvider {
     pub fn new(api_key: impl Into<String>, model: impl Into<String>) -> Self {
+        Self::custom("https://api.openai.com/v1", api_key, model)
+    }
+
+    pub fn custom(base_url: impl Into<String>, api_key: impl Into<String>, model: impl Into<String>) -> Self {
+        let base_url = base_url.into();
         let model = model.into();
+        let api_key = api_key.into();
         let dims = match model.as_str() {
             "text-embedding-3-large" => 3072,
             "text-embedding-ada-002" => 1536,
+            "nomic-embed-text" => 768,
             _ => 1536, // text-embedding-3-small default
         };
         Self {
             client: ResilientHttpClient::new(5, 300),
-            api_key: api_key.into(),
+            api_key,
             model,
+            base_url,
             dims,
         }
     }
@@ -64,10 +73,11 @@ impl OpenAiEmbeddingProvider {
             "encoding_format": "float"
         });
 
+        let endpoint = format!("{}/embeddings", self.base_url);
         let resp = self
             .client
             .post_json(
-                "https://api.openai.com/v1/embeddings",
+                &endpoint,
                 &body,
                 &self.api_key,
             )

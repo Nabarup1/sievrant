@@ -10,6 +10,7 @@ use api::grpc::{SievrantGrpcService, proto::sievrant_service_server::SievrantSer
 
 #[tokio::main]
 async fn main() {
+    dotenvy::dotenv().ok();
     init_observability(&ObservabilityConfig::default()).unwrap();
 
     let mut keys = HashMap::new();
@@ -18,7 +19,11 @@ async fn main() {
     hasher.update(b"sk-test");
     let hash = format!("{:x}", hasher.finalize());
     keys.insert(hash, "tenant-test".to_string());
-    let state = AppState::new(keys);
+    
+    let config = sievrant_core::config::SievrantConfig::load().unwrap_or_default();
+    println!("DEBUG ENV: {:?}", std::env::var("SIEVRANT_EMBEDDING__MODEL"));
+    println!("DEBUG CONFIG: {:#?}", config);
+    let state = AppState::new(keys, config);
 
     let rest_addr = "0.0.0.0:8080";
     let grpc_addr = "0.0.0.0:50051".parse().unwrap();

@@ -31,7 +31,7 @@ from sievrant.exceptions import (
     SievrantError,
 )
 
-_DEFAULT_TIMEOUT = 30.0
+_DEFAULT_TIMEOUT = 300.0
 _DEFAULT_MAX_RETRIES = 3
 
 

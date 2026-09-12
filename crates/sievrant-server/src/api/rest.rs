@@ -23,13 +23,15 @@ use crate::api::middleware::{auth_middleware, TenantContext};
 pub struct AppState {
     pub api_keys: Arc<RwLock<HashMap<String, String>>>,
     pub corpora: Arc<RwLock<HashMap<String, Arc<Corpus>>>>,
+    pub config: Arc<sievrant_core::config::SievrantConfig>,
 }
 
 impl AppState {
-    pub fn new(api_keys: HashMap<String, String>) -> Self {
+    pub fn new(api_keys: HashMap<String, String>, config: sievrant_core::config::SievrantConfig) -> Self {
         Self {
             api_keys: Arc::new(RwLock::new(api_keys)),
             corpora: Arc::new(RwLock::new(HashMap::new())),
+            config: Arc::new(config),
         }
     }
 
@@ -188,7 +190,7 @@ pub async fn query_handler(
             c
         } else {
             // Try to open it from disk
-            match sievrant::Corpus::open(&payload.corpus, sievrant_core::config::SievrantConfig::default()).await {
+            match sievrant::Corpus::open(&payload.corpus, (*state.config).clone()).await {
                 Ok(c) => {
                     let arc_c = Arc::new(c);
                     let mut lock = state.corpora.write().unwrap();
@@ -260,21 +262,50 @@ pub async fn ingest_handler(
     };
 
     if !corpus_exists {
-        // Auto-create
-        let new_corpus = Arc::new(sievrant::Corpus::create(&payload.corpus, sievrant_core::config::SievrantConfig::default()).await.unwrap());
+        // Auto-create or open
+        let corpus_result = sievrant::Corpus::open(&payload.corpus, (*state.config).clone()).await;
+        let new_corpus = match corpus_result {
+            Ok(c) => Arc::new(c),
+            Err(_) => Arc::new(sievrant::Corpus::create(&payload.corpus, (*state.config).clone()).await.unwrap_or_else(|e| {
+                tracing::error!("Failed to create corpus: {}", e);
+                panic!("Failed to create corpus: {}", e)
+            })),
+        };
         let mut lock = state.corpora.write().unwrap();
         lock.entry(payload.corpus.clone()).or_insert(new_corpus);
     }
 
-    // Note: To fully implement ingestion, Sievrant requires the IngestionPipeline
-    // For now, we simulate success since we are verifying API plumbing in Prompt 37.
-    let count = payload.documents.len();
+    let corpus_arc = state.corpora.read().unwrap().get(&payload.corpus).unwrap().clone();
+    
+    let mut ingested_count = 0;
+    let mut failed_count = 0;
+    
+    for doc in payload.documents {
+        let sievrant_doc = sievrant_core::types::Document {
+            id: doc.id.clone(),
+            content: doc.content.clone(),
+            metadata: sievrant_core::types::DocumentMetadata {
+                title: doc.metadata.as_ref().and_then(|m| m.get("title")).and_then(|v| v.as_str()).map(|s| s.to_string()),
+                ..Default::default()
+            },
+            acl_groups: vec!["public".to_string()],
+        };
+        
+        match corpus_arc.add_document(sievrant_doc).await {
+            Ok(_) => ingested_count += 1,
+            Err(e) => {
+                tracing::error!("Failed to ingest doc {}: {}", doc.id, e);
+                failed_count += 1;
+            }
+        }
+    }
+
     (
         StatusCode::ACCEPTED,
         Json(IngestResponse {
             corpus: payload.corpus,
-            ingested: count,
-            failed: 0,
+            ingested: ingested_count,
+            failed: failed_count,
         }),
     ).into_response()
 }

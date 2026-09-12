@@ -159,9 +159,14 @@ impl RetrievalIndex for Bm25Index {
         let searcher = reader.searcher();
         let query_parser = QueryParser::for_index(&self.index, vec![self.fields.text]);
 
+        let sanitized_text: String = text
+            .chars()
+            .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+            .collect();
+
         let text_query = query_parser
-            .parse_query(&text)
-            .map_err(|e| IndexError::Bm25(e.to_string()))?;
+            .parse_query(&sanitized_text)
+            .unwrap_or_else(|_| Box::new(tantivy::query::BooleanQuery::new(vec![])));
 
         let combined: Box<dyn tantivy::query::Query> = if acl_filter.is_empty() {
             text_query

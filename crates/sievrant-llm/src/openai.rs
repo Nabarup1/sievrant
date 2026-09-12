@@ -18,11 +18,11 @@ pub struct OpenAiCompatible {
 
 impl OpenAiCompatible {
     pub fn openai(api_key: &str, model: &str) -> Self {
-        Self::custom("https://api.openai.com", api_key, model, 128_000)
+        Self::custom("https://api.openai.com/v1", api_key, model, 128_000)
     }
 
     pub fn deepseek(api_key: &str, model: &str) -> Self {
-        Self::custom("https://api.deepseek.com", api_key, model, 64_000)
+        Self::custom("https://api.deepseek.com/v1", api_key, model, 64_000)
     }
 
     pub fn custom(base_url: &str, api_key: &str, model: &str, context_window: usize) -> Self {
@@ -87,7 +87,7 @@ struct OpenAiUsage {
 #[async_trait]
 impl LlmProvider for OpenAiCompatible {
     async fn complete(&self, req: LlmRequest) -> Result<LlmResponse> {
-        let url = format!("{}/v1/chat/completions", self.base_url);
+        let url = format!("{}/chat/completions", self.base_url);
         let body = self.build_request_body(&req);
 
         // Exponential backoff: 3 attempts for rate limits and server errors.

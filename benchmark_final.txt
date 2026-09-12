@@ -1,0 +1,438 @@
+2026-09-12 12:00:05 - Loading Corpus...
+2026-09-12 12:00:05 - Loaded 5183 TEST Documents.
+2026-09-12 12:00:05 - Doc Example: {'text': 'Alterations of the architecture of cerebral white matter in the developing human brain can affect cortical development and result in functional disabilities. A line scan diffusion-weighted magnetic resonance imaging (MRI) sequence with diffusion tensor analysis was applied to measure the apparent diffusion coefficient, to calculate relative anisotropy, and to delineate three-dimensional fiber architecture in cerebral white matter in preterm (n = 17) and full-term infants (n = 7). To assess effects of prematurity on cerebral white matter development, early gestation preterm infants (n = 10) were studied a second time at term. In the central white matter the mean apparent diffusion coefficient at 28 wk was high, 1.8 microm2/ms, and decreased toward term to 1.2 microm2/ms. In the posterior limb of the internal capsule, the mean apparent diffusion coefficients at both times were similar (1.2 versus 1.1 microm2/ms). Relative anisotropy was higher the closer birth was to term with greater absolute values in the internal capsule than in the central white matter. Preterm infants at term showed higher mean diffusion coefficients in the central white matter (1.4 +/- 0.24 versus 1.15 +/- 0.09 microm2/ms, p = 0.016) and lower relative anisotropy in both areas compared with full-term infants (white matter, 10.9 +/- 0.6 versus 22.9 +/- 3.0%, p = 0.001; internal capsule, 24.0 +/- 4.44 versus 33.1 +/- 0.6% p = 0.006). Nonmyelinated fibers in the corpus callosum were visible by diffusion tensor MRI as early as 28 wk; full-term and preterm infants at term showed marked differences in white matter fiber organization. The data indicate that quantitative assessment of water diffusion by diffusion tensor MRI provides insight into microstructural development in cerebral white matter in living infants.', 'title': 'Microstructural development of human newborn cerebral white matter assessed in vivo by diffusion tensor magnetic resonance imaging.'}
+2026-09-12 12:00:05 - Loading Queries...
+2026-09-12 12:00:05 - Loaded 300 TEST Queries.
+2026-09-12 12:00:05 - Query Example: 0-dimensional biomaterials show inductive properties.
+2026-09-12 12:00:05 - Running Baseline Dense Retrieval (FAISS)
+2026-09-12 12:00:05 - No device provided, using cuda:0
+2026-09-12 12:00:06 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:06 - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-09-12 12:00:06 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/modules.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Fmodules.json=&etag=%22952a9b81c0bfd99800fabf352f69c7ccd46c5e43%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:06 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/config_sentence_transformers.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:06 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/config_sentence_transformers.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Fconfig_sentence_transformers.json=&etag=%22dcb0c0d97d09b930d13600b1a773ddb27e441aab%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:06 - Loading SentenceTransformer model from BAAI/bge-small-en-v1.5.
+2026-09-12 12:00:06 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/config_sentence_transformers.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:06 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/config_sentence_transformers.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Fconfig_sentence_transformers.json=&etag=%22dcb0c0d97d09b930d13600b1a773ddb27e441aab%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:07 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:07 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/README.md?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2FREADME.md=&etag=%228b8567d75ffa619486d9590cb0eb76d66ad46c49%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:07 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:07 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/modules.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Fmodules.json=&etag=%22952a9b81c0bfd99800fabf352f69c7ccd46c5e43%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:07 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:07 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/sentence_bert_config.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Fsentence_bert_config.json=&etag=%22ea85692bff64b0d1917833c31ddbca8ab10f5455%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:08 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-09-12 12:00:08 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:08 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/config.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Fconfig.json=&etag=%223992bf890728a92476c700e6e657fd696eb94160%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:08 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/processor_config.json "HTTP/1.1 404 Not Found"
+2026-09-12 12:00:09 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/preprocessor_config.json "HTTP/1.1 404 Not Found"
+2026-09-12 12:00:09 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/video_preprocessor_config.json "HTTP/1.1 404 Not Found"
+2026-09-12 12:00:09 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/preprocessor_config.json "HTTP/1.1 404 Not Found"
+2026-09-12 12:00:09 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:10 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/tokenizer_config.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Ftokenizer_config.json=&etag=%2237fca74771bc76a8e01178ce3a6055a0995f8093%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:10 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:10 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/config.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Fconfig.json=&etag=%223992bf890728a92476c700e6e657fd696eb94160%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:10 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:10 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/config.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Fconfig.json=&etag=%223992bf890728a92476c700e6e657fd696eb94160%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:10 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:11 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/tokenizer_config.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2Ftokenizer_config.json=&etag=%2237fca74771bc76a8e01178ce3a6055a0995f8093%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:11 - HTTP Request: GET https://huggingface.co/api/models/BAAI/bge-small-en-v1.5/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-09-12 12:00:11 - HTTP Request: GET https://huggingface.co/api/models/BAAI/bge-small-en-v1.5/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-09-12 12:00:11 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-09-12 12:00:11 - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/BAAI/bge-small-en-v1.5/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/1_Pooling%2Fconfig.json?%2FBAAI%2Fbge-small-en-v1.5%2Fresolve%2Fmain%2F1_Pooling%2Fconfig.json=&etag=%221da070f0993788c8851a652170ff013aa54dd519%22 "HTTP/1.1 200 OK"
+2026-09-12 12:00:12 - HTTP Request: HEAD https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main/2_Normalize/config.json "HTTP/1.1 404 Not Found"
+2026-09-12 12:00:12 - HTTP Request: GET https://huggingface.co/api/models/BAAI/bge-small-en-v1.5 "HTTP/1.1 200 OK"
+2026-09-12 12:00:12 - Query prompt: None, Passage prompt: None
+2026-09-12 12:00:12 - Query prompt name: None, Passage prompt name: None
+2026-09-12 12:00:12 - Encoding Queries...
+2026-09-12 12:00:13 - Sorting Corpus by document length (Longest first)...
+2026-09-12 12:00:13 - Encoding Corpus in batches... Warning: This might take a while!
+2026-09-12 12:00:13 - Scoring Function: Dot Product (dot)
+2026-09-12 12:00:13 - Encoding Batch 1/1...
+2026-09-12 12:02:18 - For evaluation, we ignore identical query and document ids (default), please explicitly set ``ignore_identical_ids=False`` to ignore this.
+2026-09-12 12:02:19 - 
+
+2026-09-12 12:02:19 - NDCG@1: 0.6033
+2026-09-12 12:02:19 - NDCG@3: 0.6702
+2026-09-12 12:02:19 - NDCG@5: 0.6922
+2026-09-12 12:02:19 - NDCG@10: 0.7200
+2026-09-12 12:02:19 - NDCG@100: 0.7433
+2026-09-12 12:02:19 - NDCG@1000: 0.7489
+2026-09-12 12:02:19 - 
+
+2026-09-12 12:02:19 - MAP@1: 0.5787
+2026-09-12 12:02:19 - MAP@3: 0.6481
+2026-09-12 12:02:19 - MAP@5: 0.6629
+2026-09-12 12:02:19 - MAP@10: 0.6764
+2026-09-12 12:02:19 - MAP@100: 0.6815
+2026-09-12 12:02:19 - MAP@1000: 0.6818
+2026-09-12 12:02:19 - 
+
+2026-09-12 12:02:19 - Recall@1: 0.5787
+2026-09-12 12:02:19 - Recall@3: 0.7098
+2026-09-12 12:02:19 - Recall@5: 0.7653
+2026-09-12 12:02:19 - Recall@10: 0.8452
+2026-09-12 12:02:19 - Recall@100: 0.9533
+2026-09-12 12:02:19 - Recall@1000: 0.9967
+2026-09-12 12:02:19 - 
+
+2026-09-12 12:02:19 - P@1: 0.6033
+2026-09-12 12:02:19 - P@3: 0.2578
+2026-09-12 12:02:19 - P@5: 0.1700
+2026-09-12 12:02:19 - P@10: 0.0953
+2026-09-12 12:02:19 - P@100: 0.0108
+2026-09-12 12:02:19 - P@1000: 0.0011
+2026-09-12 12:02:19 - Running Sievrant Hybrid Retrieval on corpus: benchmark_scifact
+2026-09-12 12:02:19 - Querying Sievrant...
+2026-09-12 12:02:19 - Processed 0 / 300 queries
+2026-09-12 12:02:23 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:23 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:24 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:24 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:24 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:25 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:25 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:25 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:25 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:55 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:55 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:02:55 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:03:28 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:03:38 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:03:42 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:03:46 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:40 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:04:40 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:31 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:31 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:31 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:31 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:31 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:32 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:32 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:32 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:32 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:32 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:32 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:32 - Processed 50 / 300 queries
+2026-09-12 12:05:32 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:47 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:47 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:47 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:47 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:47 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:05:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:04 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:04 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:04 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:18 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:06:50 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:20 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:20 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:20 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:57 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:57 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:57 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:07:57 - Processed 100 / 300 queries
+2026-09-12 12:08:10 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:25 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:41 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:41 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:41 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:41 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:41 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:42 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:08:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:22 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:34 - Processed 150 / 300 queries
+2026-09-12 12:09:35 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:51 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:51 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:09:51 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:17 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:17 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:37 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:37 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:37 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:38 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:38 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:38 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:38 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:38 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:10:38 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:18 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:18 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:18 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:18 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:18 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:11:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:12:21 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:10 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:10 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:10 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:10 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:25 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:53 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:53 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:53 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:54 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:13:54 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:16 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:16 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:25 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:26 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:26 - Processed 200 / 300 queries
+2026-09-12 12:14:26 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:26 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:26 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:27 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:27 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:27 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:14:46 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:15:11 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:15:12 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:15:12 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:15:12 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:15:13 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:15:13 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:15:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:15:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:16:29 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:16:30 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:16:30 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:16:31 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:16:42 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:16:43 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:16:44 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:06 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:06 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:07 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:07 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:07 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:07 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:08 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:08 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:08 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:09 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:09 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:09 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:39 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:39 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:40 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:40 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:41 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:41 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:17:42 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:18:18 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:18:18 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:18:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:18:19 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:18:20 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:18:20 - Processed 250 / 300 queries
+2026-09-12 12:18:20 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:18:46 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:18:46 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:19:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:19:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:20:14 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:20:15 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:20:45 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:20:47 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:20:47 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:20:48 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:20:49 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:20:50 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:21:29 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:21:32 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:05 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:06 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:06 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:06 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:28 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:28 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:28 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:40 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:54 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:54 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:54 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:22:55 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:10 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:10 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:27 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:27 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:27 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:27 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:27 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:51 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:23:51 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:20 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:20 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:35 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:35 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:35 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:35 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:35 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:36 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:36 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:36 - HTTP Request: POST http://localhost:8080/v1/query "HTTP/1.1 200 OK"
+2026-09-12 12:24:36 - Evaluating Sievrant results...
+2026-09-12 12:24:36 - For evaluation, we ignore identical query and document ids (default), please explicitly set ``ignore_identical_ids=False`` to ignore this.
+2026-09-12 12:24:36 - 
+
+2026-09-12 12:24:36 - NDCG@1: 0.0000
+2026-09-12 12:24:36 - NDCG@3: 0.0000
+2026-09-12 12:24:36 - NDCG@5: 0.0000
+2026-09-12 12:24:36 - NDCG@10: 0.0000
+2026-09-12 12:24:36 - NDCG@100: 0.0000
+2026-09-12 12:24:36 - NDCG@1000: 0.0000
+2026-09-12 12:24:36 - 
+
+2026-09-12 12:24:36 - MAP@1: 0.0000
+2026-09-12 12:24:36 - MAP@3: 0.0000
+2026-09-12 12:24:36 - MAP@5: 0.0000
+2026-09-12 12:24:36 - MAP@10: 0.0000
+2026-09-12 12:24:36 - MAP@100: 0.0000
+2026-09-12 12:24:36 - MAP@1000: 0.0000
+2026-09-12 12:24:36 - 
+
+2026-09-12 12:24:36 - Recall@1: 0.0000
+2026-09-12 12:24:36 - Recall@3: 0.0000
+2026-09-12 12:24:36 - Recall@5: 0.0000
+2026-09-12 12:24:36 - Recall@10: 0.0000
+2026-09-12 12:24:36 - Recall@100: 0.0000
+2026-09-12 12:24:36 - Recall@1000: 0.0000
+2026-09-12 12:24:36 - 
+
+2026-09-12 12:24:36 - P@1: 0.0000
+2026-09-12 12:24:36 - P@3: 0.0000
+2026-09-12 12:24:36 - P@5: 0.0000
+2026-09-12 12:24:36 - P@10: 0.0000
+2026-09-12 12:24:36 - P@100: 0.0000
+2026-09-12 12:24:36 - P@1000: 0.0000
+
+============================================================
+Sievrant BEIR Benchmark: scifact
+Model: BAAI/bge-small-en-v1.5
+============================================================
+
+| System             | NDCG@10 | Recall@100 |
+|--------------------|---------|------------|
+| Dense only (FAISS) |   0.720 |      0.953 |
+| Sievrant Hybrid    |   0.000 |      0.000 |
+| Delta              | -100.0% |    -100.0% |
+
+Results saved to disk.

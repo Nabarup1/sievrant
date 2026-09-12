@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Decision(str, Enum):
@@ -195,6 +195,13 @@ class EvidencePacket(BaseModel):
 
     cost_usd: Optional[float] = None
     """Estimated USD cost. None when cost tracking is disabled or a local model is used."""
+
+    @field_validator('decision', 'route', mode='before')
+    @classmethod
+    def uppercase_enums(cls, v: str) -> str:
+        if isinstance(v, str):
+            return v.upper()
+        return v
 
 
 class HealthResponse(BaseModel):

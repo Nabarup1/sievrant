@@ -77,10 +77,19 @@ pub struct Corpus {
 
 impl Corpus {
     async fn build_orchestrator(name: &str, config: &SievrantConfig) -> Result<Arc<RetrievalOrchestrator>> {
-        let llm: Arc<dyn LlmProvider> = if let Some(key) = &config.llm.openai_api_key {
-            Arc::new(OpenAiCompatible::openai(key, "gpt-4o"))
+        let openai_api_key = if let Some(key) = &config.llm.openai_api_key {
+            key.clone()
         } else if let Ok(key) = std::env::var("OPENAI_API_KEY") {
-            Arc::new(OpenAiCompatible::openai(&key, "gpt-4o"))
+            key
+        } else {
+            "dummy".to_string()
+        };
+
+        let openai_base_url = std::env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+        let openai_model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o".to_string());
+
+        let llm: Arc<dyn LlmProvider> = if openai_api_key != "dummy" {
+            Arc::new(OpenAiCompatible::custom(&openai_base_url, &openai_api_key, &openai_model, 128_000))
         } else {
             Arc::new(noop::NoopLlm)
         };
@@ -111,10 +120,14 @@ impl Corpus {
             router: Arc::new(QueryRouter::new(RoutingConfig::default())),
             query_processor: Arc::new(QueryProcessor::new(
                 llm.clone(), 
-                Arc::new(EmbeddingProviderWrapper { inner: OpenAiEmbeddingProvider::new("dummy", "text-embedding-ada-002") }), 
+                Arc::new(EmbeddingProviderWrapper { inner: OpenAiEmbeddingProvider::custom(&openai_base_url, &openai_api_key, &config.embedding.model) }), 
                 QueryProcessingConfig::default()
             )),
-            acl_resolver: Arc::new(InMemoryAclResolver::new()),
+            acl_resolver: {
+                let acl = InMemoryAclResolver::new();
+                acl.register_user("tenant-test", vec!["admin".to_string()]);
+                Arc::new(acl)
+            },
             indexes,
             reranker: Arc::new(TermOverlapReranker),
             calibration: Arc::new(noop::NoopCalibration),
@@ -173,6 +186,38 @@ impl Corpus {
     }
 
     // pub async fn add_document(&self, doc: Document) -> Result<IngestionResult> { ... }
+    
+    pub async fn add_document(&self, doc: Document) -> Result<sievrant_core::ingestion::IngestionResult> {
+        let pipeline = sievrant_orchestrator::ingestor::IngestionPipeline::new(Arc::new(SievrantConfig::default()));
+        let (result, enriched) = pipeline.ingest(doc.clone(), &self.name).await?;
+        
+        let chunk_ids: Vec<String> = enriched.iter().map(|c| c.chunk.id.clone()).collect();
+        self.corpus_manager.add_document(&self.name, &doc.id, "api", &doc.content, chunk_ids)?;
+
+        if enriched.is_empty() {
+            return Ok(result);
+        }
+
+        let texts: Vec<String> = enriched.iter().map(|c| c.chunk.text.clone()).collect();
+        
+        let embeddings = self.orchestrator.query_processor.embedding_provider.embed(&texts).await?;
+
+        let mut index_chunks = Vec::with_capacity(enriched.len());
+        for (i, ec) in enriched.into_iter().enumerate() {
+            index_chunks.push(sievrant_index::vector::IndexChunk {
+                chunk_id: ec.chunk.id,
+                text: ec.chunk.text,
+                embedding: Some(embeddings[i].clone()),
+                metadata: ec.metadata,
+            });
+        }
+
+        self.orchestrator.indexes.vector.insert(&index_chunks).await?;
+        self.orchestrator.indexes.bm25.insert(&index_chunks).await?;
+        // Tree and Graph indexes are not implemented yet for inserting via add_document
+
+        Ok(result)
+    }
 }
 
 /// The simplest possible retrieval call.

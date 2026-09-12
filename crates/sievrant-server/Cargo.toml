@@ -33,6 +33,7 @@ utoipa-swagger-ui = { version = "7", features = ["axum"] }
 tonic = "0.12"
 prost = "0.13"
 tokio-stream = "0.1"
+dotenvy = "0.15"
 
 [build-dependencies]
 tonic-build = "0.12"

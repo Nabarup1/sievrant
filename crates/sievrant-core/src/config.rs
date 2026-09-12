@@ -5,6 +5,7 @@ use crate::error::ConfigError;
 /// Top-level configuration for a Sievrant instance.
 /// Loaded in priority order: defaults, sievrant.toml, then SIEVRANT_* environment variables.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct SievrantConfig {
     pub llm: LlmConfig,
     pub embedding: EmbeddingConfig,
@@ -53,9 +54,26 @@ impl SievrantConfig {
             .build()
             .map_err(|e| ConfigError::Parse(e.to_string()))?;
 
-        let loaded: SievrantConfig = cfg
-            .try_deserialize()
-            .unwrap_or_else(|_| SievrantConfig::default());
+        let mut loaded: SievrantConfig = match cfg.try_deserialize() {
+            Ok(c) => c,
+            Err(e) => {
+                println!("CONFIG DESERIALIZATION ERROR: {:?}", e);
+                SievrantConfig::default()
+            }
+        };
+
+        if let Ok(model) = std::env::var("SIEVRANT_EMBEDDING__MODEL") {
+            loaded.embedding.model = model;
+        }
+        if let Ok(provider) = std::env::var("SIEVRANT_EMBEDDING__PROVIDER") {
+            loaded.embedding.provider = provider;
+        }
+        if let Ok(base_url) = std::env::var("OPENAI_BASE_URL") {
+            loaded.llm.openai_base_url = Some(base_url);
+        }
+        if let Ok(model) = std::env::var("OPENAI_MODEL") {
+            loaded.llm.openai_model = model;
+        }
 
         loaded.validate()?;
         Ok(loaded)
@@ -121,6 +139,7 @@ impl SievrantConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct LlmConfig {
     /// SIEVRANT_LLM__DEFAULT_PROVIDER. Values: "openai", "anthropic", "gemini".
     pub default_provider: String,
@@ -130,6 +149,7 @@ pub struct LlmConfig {
     pub openai_model: String,
     pub anthropic_model: String,
     pub gemini_model: String,
+    pub openai_base_url: Option<String>,
     /// Request timeout in seconds.
     pub timeout_secs: u64,
     pub max_retries: u32,
@@ -145,6 +165,7 @@ impl Default for LlmConfig {
             openai_model: "gpt-4o".into(),
             anthropic_model: "claude-sonnet-4-5".into(),
             gemini_model: "gemini-2.5-pro".into(),
+            openai_base_url: None,
             timeout_secs: 60,
             max_retries: 3,
         }
@@ -152,6 +173,7 @@ impl Default for LlmConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct EmbeddingConfig {
     pub provider: String,
     pub model: String,
@@ -171,6 +193,7 @@ impl Default for EmbeddingConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct QdrantConfig {
     pub url: String,
     pub grpc_port: u16,
@@ -188,6 +211,7 @@ impl Default for QdrantConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RerankerConfig {
     /// "onnx" for local model, "cohere" for API-based.
     pub reranker_type: String,
@@ -211,6 +235,7 @@ impl Default for RerankerConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RetrievalDefaults {
     /// Default conformal coverage target for all retrieve() calls.
     pub coverage: f64,
@@ -234,6 +259,7 @@ impl Default for RetrievalDefaults {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct CacheConfig {
     pub enabled: bool,
     pub max_entries: usize,
@@ -255,6 +281,7 @@ impl Default for CacheConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct StorageConfig {
     pub data_dir: String,
     /// WAL segment is rotated when it exceeds this size in bytes.
@@ -274,6 +301,7 @@ impl Default for StorageConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
@@ -293,6 +321,7 @@ impl Default for ServerConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ObservabilityConfig {
     pub log_level: String,
     pub log_format: String,
@@ -316,6 +345,7 @@ impl Default for ObservabilityConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AuditConfig {
     pub enabled: bool,
     pub audit_dir: String,
@@ -334,6 +364,7 @@ impl Default for AuditConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct CalibrationConfig {
     pub calibration_dir: String,
     pub min_calibration_examples: usize,
@@ -355,6 +386,7 @@ impl Default for CalibrationConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RoutingConfig {
     pub enabled: bool,
     /// Route classification defaults to Standard when disabled.

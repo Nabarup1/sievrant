@@ -51,6 +51,7 @@ impl AclResolver for InMemoryAclResolver {
     async fn resolve(&self, user_id: Option<&str>, _corpus: &str) -> Result<Vec<String>> {
         match user_id {
             Some(uid) => {
+                println!("DEBUG ACL: looking for '{}', map contains: {:?}", uid, self.user_groups.iter().map(|kv| kv.key().clone()).collect::<Vec<_>>());
                 if let Some(groups) = self.user_groups.get(uid) {
                     if groups.is_empty() {
                         return Err(SievrantError::AccessDenied {
