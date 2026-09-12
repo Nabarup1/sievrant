@@ -179,17 +179,31 @@ pub async fn query_handler(
     info!(tenant_id = %tenant.tenant_id, corpus = %payload.corpus, "handling query");
 
     let corpus = {
-        let lock = state.corpora.read().unwrap();
-        match lock.get(&payload.corpus) {
-            Some(c) => Arc::clone(c),
-            None => {
-                return (
-                    StatusCode::NOT_FOUND,
-                    Json(serde_json::json!({
-                        "error": "corpus_not_found",
-                        "message": format!("Corpus '{}' is not registered on this server", payload.corpus)
-                    })),
-                ).into_response();
+        let corpus_opt = {
+            let lock = state.corpora.read().unwrap();
+            lock.get(&payload.corpus).map(Arc::clone)
+        };
+
+        if let Some(c) = corpus_opt {
+            c
+        } else {
+            // Try to open it from disk
+            match sievrant::Corpus::open(&payload.corpus, sievrant_core::config::SievrantConfig::default()).await {
+                Ok(c) => {
+                    let arc_c = Arc::new(c);
+                    let mut lock = state.corpora.write().unwrap();
+                    lock.insert(payload.corpus.clone(), Arc::clone(&arc_c));
+                    arc_c
+                }
+                Err(_) => {
+                    return (
+                        StatusCode::NOT_FOUND,
+                        Json(serde_json::json!({
+                            "error": "corpus_not_found",
+                            "message": format!("Corpus '{}' is not registered and could not be loaded from disk", payload.corpus)
+                        })),
+                    ).into_response();
+                }
             }
         }
     };
