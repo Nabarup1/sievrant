@@ -76,8 +76,14 @@ pub struct Corpus {
 }
 
 impl Corpus {
-    async fn build_orchestrator(name: &str, _config: &SievrantConfig) -> Result<Arc<RetrievalOrchestrator>> {
-        let llm = Arc::new(OpenAiCompatible::openai("dummy_key", "gpt-4o"));
+    async fn build_orchestrator(name: &str, config: &SievrantConfig) -> Result<Arc<RetrievalOrchestrator>> {
+        let llm: Arc<dyn LlmProvider> = if let Some(key) = &config.llm.openai_api_key {
+            Arc::new(OpenAiCompatible::openai(key, "gpt-4o"))
+        } else if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+            Arc::new(OpenAiCompatible::openai(&key, "gpt-4o"))
+        } else {
+            Arc::new(noop::NoopLlm)
+        };
         
         let vector_config = VectorIndexConfig {
             backend: VectorBackendConfig::Memory,

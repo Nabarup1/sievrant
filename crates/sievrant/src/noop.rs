@@ -4,6 +4,7 @@ use sievrant_core::{
     types::{EvidencePacket, QueryTaxonomy},
 };
 use sievrant_orchestrator::pipeline::{CalibrationManager, CoverageMonitor, SemanticCache};
+use sievrant_llm::{LlmProvider, LlmRequest, LlmResponse, TokenUsage, FinishReason};
 
 pub struct NoopCache;
 #[async_trait]
@@ -40,5 +41,30 @@ impl CoverageMonitor for NoopCoverage {
     fn record(&self, _corpus: &str, _covered: bool) {}
     fn empirical_coverage_30d(&self, _corpus: &str) -> Option<f64> {
         None
+    }
+}
+
+pub struct NoopLlm;
+#[async_trait]
+impl LlmProvider for NoopLlm {
+    async fn complete(&self, _req: LlmRequest) -> sievrant_core::error::Result<LlmResponse> {
+        Ok(LlmResponse {
+            content: "Mock generated answer (LLM disabled)".to_string(),
+            usage: TokenUsage::default(),
+            model: self.model_id().to_string(),
+            finish_reason: FinishReason::Stop,
+        })
+    }
+    
+    fn supports_vision(&self) -> bool {
+        false
+    }
+    
+    fn model_id(&self) -> &str {
+        "noop-llm"
+    }
+    
+    fn context_window(&self) -> usize {
+        128000
     }
 }
