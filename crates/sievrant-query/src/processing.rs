@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-
 use sievrant_core::{
     error::{QueryError, Result},
     types::Route,
@@ -74,10 +73,7 @@ impl QueryProcessor {
 
         match route {
             Route::Fast | Route::Cached => {
-                let embeddings = self
-                    .embedding_provider
-                    .embed(&[query.to_string()])
-                    .await?;
+                let embeddings = self.embedding_provider.embed(&[query.to_string()]).await?;
                 Ok(ProcessedQuery {
                     original: query.to_string(),
                     expanded: None,
@@ -98,10 +94,7 @@ impl QueryProcessor {
                 let embedding = if let Some(hyde_vec) = embed_text {
                     hyde_vec
                 } else {
-                    let embeddings = self
-                        .embedding_provider
-                        .embed(&[expanded.clone()])
-                        .await?;
+                    let embeddings = self.embedding_provider.embed(&[expanded.clone()]).await?;
                     embeddings.into_iter().next().unwrap_or_default()
                 };
 
@@ -118,10 +111,7 @@ impl QueryProcessor {
                 let expanded = self.expand_query(query).await?;
                 let sub_queries = self.decompose_query(query).await?;
 
-                let embeddings = self
-                    .embedding_provider
-                    .embed(&[expanded.clone()])
-                    .await?;
+                let embeddings = self.embedding_provider.embed(&[expanded.clone()]).await?;
                 let embedding = embeddings.into_iter().next().unwrap_or_default();
 
                 Ok(ProcessedQuery {
@@ -188,10 +178,7 @@ impl QueryProcessor {
             .await
             .map_err(|e| QueryError::Embedding(e.to_string()))?;
 
-        let embeddings = self
-            .embedding_provider
-            .embed(&[response.content])
-            .await?;
+        let embeddings = self.embedding_provider.embed(&[response.content]).await?;
 
         Ok(embeddings.into_iter().next().unwrap_or_default())
     }
@@ -241,8 +228,10 @@ pub fn extract_entities(text: &str) -> Vec<String> {
 
     let words: Vec<&str> = text.split_whitespace().collect();
     for window in words.windows(2) {
-        if ["Section", "Article", "Clause", "Exhibit", "Schedule", "Appendix"]
-            .contains(&window[0])
+        if [
+            "Section", "Article", "Clause", "Exhibit", "Schedule", "Appendix",
+        ]
+        .contains(&window[0])
         {
             let entity = format!("{} {}", window[0], window[1]);
             if seen.insert(entity.clone()) {

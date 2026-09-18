@@ -1,6 +1,6 @@
 /// A generic metadata filter predicate representation that can be converted
 /// into the specific query DSL of the underlying vector database (e.g., Qdrant, Milvus, Pinecone).
-/// 
+///
 /// This ensures ACLs are pushed down to the query level and applied BEFORE scoring.
 #[derive(Debug, Clone)]
 pub enum AclFilter {
@@ -49,19 +49,37 @@ mod tests {
     #[test]
     fn filter_matches_allowed_groups() {
         let filter = AclFilter::build(&["engineering".to_string(), "public".to_string()]);
-        
-        assert!(filter.matches(&["engineering".to_string()]), "should match direct group");
-        assert!(filter.matches(&["public".to_string()]), "should match public");
-        assert!(filter.matches(&["engineering".to_string(), "finance".to_string()]), "should match if document has one allowed group");
-        assert!(!filter.matches(&["finance".to_string(), "hr".to_string()]), "should not match if no intersection");
+
+        assert!(
+            filter.matches(&["engineering".to_string()]),
+            "should match direct group"
+        );
+        assert!(
+            filter.matches(&["public".to_string()]),
+            "should match public"
+        );
+        assert!(
+            filter.matches(&["engineering".to_string(), "finance".to_string()]),
+            "should match if document has one allowed group"
+        );
+        assert!(
+            !filter.matches(&["finance".to_string(), "hr".to_string()]),
+            "should not match if no intersection"
+        );
     }
 
     #[test]
     fn admin_filter_allows_all() {
         let filter = AclFilter::build(&["engineering".to_string(), "admin".to_string()]);
         assert!(matches!(filter, AclFilter::AllowAll));
-        
-        assert!(filter.matches(&["top_secret".to_string()]), "admin can see top secret");
-        assert!(filter.matches(&["finance".to_string()]), "admin can see finance");
+
+        assert!(
+            filter.matches(&["top_secret".to_string()]),
+            "admin can see top secret"
+        );
+        assert!(
+            filter.matches(&["finance".to_string()]),
+            "admin can see finance"
+        );
     }
 }

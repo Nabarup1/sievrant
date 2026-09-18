@@ -1,5 +1,5 @@
 use opentelemetry::{
-    metrics::{Counter, Histogram, ObservableGauge, MeterProvider},
+    metrics::{Counter, Histogram, MeterProvider, ObservableGauge},
     KeyValue,
 };
 
@@ -54,11 +54,11 @@ impl RetrievalMetrics {
     /// Record a completed request
     pub fn record_request(&self, corpus: &str, latency_ms: f64, cache_hit: bool, budget_util: f64) {
         let labels = [KeyValue::new("corpus", corpus.to_string())];
-        
+
         self.request_totals.add(1, &labels);
         self.retrieval_latency.record(latency_ms, &labels);
         self.token_budget_utilization.record(budget_util, &labels);
-        
+
         if cache_hit {
             self.cache_hits.add(1, &labels);
         }

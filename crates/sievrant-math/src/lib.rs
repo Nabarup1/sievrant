@@ -1,4 +1,4 @@
-pub mod rrf;
-pub mod submodular;
 pub mod conformal;
+pub mod rrf;
 pub mod simd;
+pub mod submodular;

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use ort::session::{Session, builder::GraphOptimizationLevel};
+use ort::session::{builder::GraphOptimizationLevel, Session};
 use sievrant_core::error::{RerankError, Result};
 
 use crate::Reranker;
@@ -45,10 +45,7 @@ impl ColBertReranker {
     /// d_j of the dot product q_i . d_j. Sum these maxima across all query tokens.
     ///
     /// Assumes embeddings are already L2 normalised (cosine similarity = dot product).
-    pub fn max_sim_score(
-        query_embeddings: &[Vec<f32>],
-        doc_embeddings: &[Vec<f32>],
-    ) -> f64 {
+    pub fn max_sim_score(query_embeddings: &[Vec<f32>], doc_embeddings: &[Vec<f32>]) -> f64 {
         sievrant_math::simd::fast_max_sim_score(query_embeddings, doc_embeddings)
     }
 
@@ -75,11 +72,13 @@ impl ColBertReranker {
             .map_err(|e| RerankError::Inference(e.to_string()))?;
 
         let mut session_guard = self.session.lock().unwrap();
-        let outputs = session_guard.run(ort::inputs![
-            "input_ids" => input_ids_tensor,
-            "attention_mask" => attn_tensor,
-            "token_type_ids" => type_tensor,
-        ]).map_err(|e| RerankError::Inference(e.to_string()))?;
+        let outputs = session_guard
+            .run(ort::inputs![
+                "input_ids" => input_ids_tensor,
+                "attention_mask" => attn_tensor,
+                "token_type_ids" => type_tensor,
+            ])
+            .map_err(|e| RerankError::Inference(e.to_string()))?;
 
         let tensor = outputs[0]
             .try_extract_tensor::<f32>()

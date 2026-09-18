@@ -46,7 +46,11 @@ impl OpenAiEmbeddingProvider {
         Self::custom("https://api.openai.com/v1", api_key, model)
     }
 
-    pub fn custom(base_url: impl Into<String>, api_key: impl Into<String>, model: impl Into<String>) -> Self {
+    pub fn custom(
+        base_url: impl Into<String>,
+        api_key: impl Into<String>,
+        model: impl Into<String>,
+    ) -> Self {
         let base_url = base_url.into();
         let model = model.into();
         let api_key = api_key.into();
@@ -76,37 +80,35 @@ impl OpenAiEmbeddingProvider {
         let endpoint = format!("{}/embeddings", self.base_url);
         let resp = self
             .client
-            .post_json(
-                &endpoint,
-                &body,
-                &self.api_key,
-            )
+            .post_json(&endpoint, &body, &self.api_key)
             .await?;
 
-        let data = resp["data"]
-            .as_array()
-            .ok_or_else(|| SievrantError::Llm(LlmError::ParseError {
+        let data = resp["data"].as_array().ok_or_else(|| {
+            SievrantError::Llm(LlmError::ParseError {
                 provider: "openai-embedding".into(),
                 reason: "missing 'data' field in embeddings response".into(),
-            }))?;
+            })
+        })?;
 
         data.iter()
             .map(|item| {
                 item["embedding"]
                     .as_array()
-                    .ok_or_else(|| SievrantError::Llm(LlmError::ParseError {
-                        provider: "openai-embedding".into(),
-                        reason: "missing 'embedding' field in data item".into(),
-                    }))
+                    .ok_or_else(|| {
+                        SievrantError::Llm(LlmError::ParseError {
+                            provider: "openai-embedding".into(),
+                            reason: "missing 'embedding' field in data item".into(),
+                        })
+                    })
                     .and_then(|arr| {
                         arr.iter()
                             .map(|v| {
-                                v.as_f64()
-                                    .map(|f| f as f32)
-                                    .ok_or_else(|| SievrantError::Llm(LlmError::ParseError {
+                                v.as_f64().map(|f| f as f32).ok_or_else(|| {
+                                    SievrantError::Llm(LlmError::ParseError {
                                         provider: "openai-embedding".into(),
                                         reason: "non-numeric embedding value".into(),
-                                    }))
+                                    })
+                                })
                             })
                             .collect::<Result<Vec<f32>>>()
                     })
@@ -162,7 +164,10 @@ pub struct FallbackEmbeddingProvider {
 
 impl FallbackEmbeddingProvider {
     pub fn new(providers: Vec<Box<dyn EmbeddingProvider>>) -> Self {
-        assert!(!providers.is_empty(), "FallbackEmbeddingProvider needs at least one provider");
+        assert!(
+            !providers.is_empty(),
+            "FallbackEmbeddingProvider needs at least one provider"
+        );
         Self { providers }
     }
 }
@@ -175,7 +180,10 @@ impl EmbeddingProvider for FallbackEmbeddingProvider {
             match p.embed(text).await {
                 Ok(v) => return Ok(v),
                 Err(e) => {
-                    tracing::warn!(provider = p.provider_name(), "embedding provider failed, trying next");
+                    tracing::warn!(
+                        provider = p.provider_name(),
+                        "embedding provider failed, trying next"
+                    );
                     last_err = Some(e);
                 }
             }
@@ -189,7 +197,10 @@ impl EmbeddingProvider for FallbackEmbeddingProvider {
             match p.embed_batch(texts).await {
                 Ok(v) => return Ok(v),
                 Err(e) => {
-                    tracing::warn!(provider = p.provider_name(), "embedding batch provider failed, trying next");
+                    tracing::warn!(
+                        provider = p.provider_name(),
+                        "embedding batch provider failed, trying next"
+                    );
                     last_err = Some(e);
                 }
             }

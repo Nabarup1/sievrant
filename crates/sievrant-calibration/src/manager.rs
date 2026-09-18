@@ -1,11 +1,13 @@
-use std::path::PathBuf;
 use dashmap::DashMap;
 use ordered_float::OrderedFloat;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 use sievrant_core::error::{CalibrationError, Result, SievrantError};
 use sievrant_core::types::QueryTaxonomy;
-use sievrant_math::conformal::{CalibrationEntry, CalibrationScore, CalibrationSet as MathCalSet, compute_threshold};
+use sievrant_math::conformal::{
+    compute_threshold, CalibrationEntry, CalibrationScore, CalibrationSet as MathCalSet,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalibrationObservation {
@@ -72,7 +74,7 @@ impl CalibrationManager {
         } else {
             "default"
         };
-        
+
         let key = (set_id.to_string(), OrderedFloat(coverage));
         if let Some(t) = self.thresholds.get(&key) {
             *t
@@ -91,10 +93,12 @@ impl CalibrationManager {
     ) -> Result<CalibrationReport> {
         // 1. Check minimum data
         if observations.len() < 100 {
-            return Err(SievrantError::Calibration(CalibrationError::InsufficientData {
-                min_required: 100,
-                provided: observations.len(),
-            }));
+            return Err(SievrantError::Calibration(
+                CalibrationError::InsufficientData {
+                    min_required: 100,
+                    provided: observations.len(),
+                },
+            ));
         }
 
         // 2. Validation split (80/20)
@@ -118,11 +122,14 @@ impl CalibrationManager {
                 query: "calibration".into(),
                 taxonomy: QueryTaxonomy::Factoid,
                 relevant_chunk_ids: vec![],
-                scores: train_scores.iter().map(|&s| CalibrationScore {
-                    chunk_id: String::new(),
-                    nonconformity_score: s,
-                    is_relevant: true,
-                }).collect(),
+                scores: train_scores
+                    .iter()
+                    .map(|&s| CalibrationScore {
+                        chunk_id: String::new(),
+                        nonconformity_score: s,
+                        is_relevant: true,
+                    })
+                    .collect(),
             }],
             created_at: chrono::Utc::now(),
         };
@@ -137,10 +144,10 @@ impl CalibrationManager {
             .enumerate()
             .map(|(i, _)| (i as f64 / val_obs.len() as f64).abs())
             .collect();
-        
+
         let covered_count = val_scores.iter().filter(|&&s| s <= t95).count();
         let holdout_coverage = covered_count as f64 / val_scores.len() as f64;
-        
+
         let is_valid = holdout_coverage >= 0.93; // Accept slight variance on holdout
 
         // 6. Store
@@ -152,10 +159,13 @@ impl CalibrationManager {
         };
 
         self.tenant_sets.insert(corpus.to_string(), set.clone());
-        self.thresholds.insert((corpus.to_string(), OrderedFloat(0.90)), t90);
-        self.thresholds.insert((corpus.to_string(), OrderedFloat(0.95)), t95);
-        self.thresholds.insert((corpus.to_string(), OrderedFloat(0.99)), t99);
-        
+        self.thresholds
+            .insert((corpus.to_string(), OrderedFloat(0.90)), t90);
+        self.thresholds
+            .insert((corpus.to_string(), OrderedFloat(0.95)), t95);
+        self.thresholds
+            .insert((corpus.to_string(), OrderedFloat(0.99)), t99);
+
         self.persist_set(&set)?;
 
         // 7. Report
@@ -169,7 +179,7 @@ impl CalibrationManager {
             is_valid,
         })
     }
-    
+
     fn persist_set(&self, set: &CalibrationSet) -> Result<()> {
         let path = self.calibration_dir.join(format!("{}.json", set.set_id));
         let data = serde_json::to_string_pretty(set)
@@ -189,13 +199,23 @@ mod tests {
     fn validates_minimum_data_requirement() {
         let dir = TempDir::new().unwrap();
         let manager = CalibrationManager::new(dir.path()).unwrap();
-        
+
         // Only 5 observations
-        let obs = vec![CalibrationObservation { query: "q".into(), relevant_chunk_ids: vec![] }; 5];
-        
+        let obs = vec![
+            CalibrationObservation {
+                query: "q".into(),
+                relevant_chunk_ids: vec![]
+            };
+            5
+        ];
+
         let result = manager.onboard_calibration("test_corp", obs);
         assert!(result.is_err());
-        if let Err(SievrantError::Calibration(CalibrationError::InsufficientData { min_required, .. })) = result {
+        if let Err(SievrantError::Calibration(CalibrationError::InsufficientData {
+            min_required,
+            ..
+        })) = result
+        {
             assert_eq!(min_required, 100);
         } else {
             panic!("Expected Calibration error");
@@ -206,14 +226,20 @@ mod tests {
     fn onboarding_flow_computes_thresholds() {
         let dir = TempDir::new().unwrap();
         let manager = CalibrationManager::new(dir.path()).unwrap();
-        
-        let obs = vec![CalibrationObservation { query: "q".into(), relevant_chunk_ids: vec!["c1".into()] }; 150];
-        
+
+        let obs = vec![
+            CalibrationObservation {
+                query: "q".into(),
+                relevant_chunk_ids: vec!["c1".into()]
+            };
+            150
+        ];
+
         let report = manager.onboard_calibration("tenant_a", obs).unwrap();
         assert!(report.is_valid);
         assert!(report.threshold_95 >= report.threshold_90);
         assert!(report.threshold_99 >= report.threshold_95);
-        
+
         // Verify we can retrieve it
         let t = manager.threshold("tenant_a", 0.95);
         assert_eq!(t, report.threshold_95);
@@ -223,7 +249,7 @@ mod tests {
     fn fallback_to_default_set() {
         let dir = TempDir::new().unwrap();
         let manager = CalibrationManager::new(dir.path()).unwrap();
-        
+
         // tenant_b has not been onboarded, should fall back to 1.5 default
         let t = manager.threshold("tenant_b", 0.95);
         assert_eq!(t, 1.5);

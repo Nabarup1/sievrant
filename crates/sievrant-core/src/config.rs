@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tracing::error;
 
 use crate::error::ConfigError;
 
@@ -57,8 +58,8 @@ impl SievrantConfig {
         let mut loaded: SievrantConfig = match cfg.try_deserialize() {
             Ok(c) => c,
             Err(e) => {
-                println!("CONFIG DESERIALIZATION ERROR: {:?}", e);
-                SievrantConfig::default()
+                error!(error = ?e, "config deserialization failed");
+                return Err(ConfigError::Parse(e.to_string()));
             }
         };
 
@@ -413,6 +414,12 @@ mod tests {
     fn default_config_passes_validation() {
         let cfg = SievrantConfig::default();
         cfg.validate().expect("default config should be valid");
+    }
+
+    #[test]
+    fn test_valid_routing_config() {
+        let config = SievrantConfig::default();
+        assert!(config.validate().is_ok());
     }
 
     #[test]

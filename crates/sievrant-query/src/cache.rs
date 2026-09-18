@@ -6,9 +6,7 @@ use std::sync::{
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 
-use sievrant_core::{
-    types::{EvidencePacket, Route},
-};
+use sievrant_core::types::{EvidencePacket, Route};
 
 /// Configuration for the semantic cache.
 #[derive(Debug, Clone)]
@@ -58,11 +56,17 @@ struct SemanticCacheIndex {
 
 impl SemanticCacheIndex {
     fn new() -> Self {
-        Self { records: Vec::new() }
+        Self {
+            records: Vec::new(),
+        }
     }
 
     fn insert(&mut self, cache_key: u64, embedding: Vec<f32>, tenant_id: Option<String>) {
-        self.records.push(SemanticRecord { cache_key, embedding, tenant_id });
+        self.records.push(SemanticRecord {
+            cache_key,
+            embedding,
+            tenant_id,
+        });
     }
 
     /// Find the cache key of the most similar stored query above the threshold,
@@ -161,7 +165,9 @@ impl SemanticCache {
         if let Some(entry) = self.exact_cache.get(&candidate_key) {
             if !self.is_expired(&entry) && entry.tenant_id.as_ref() == user_id.as_ref() {
                 entry.hit_count.fetch_add(1, Ordering::Relaxed);
-                entry.last_accessed.store(Utc::now().timestamp() as u64, Ordering::Relaxed);
+                entry
+                    .last_accessed
+                    .store(Utc::now().timestamp() as u64, Ordering::Relaxed);
                 let mut packet = entry.packet.clone();
                 packet.cache_hit = true;
                 packet.route = Route::Cached;
@@ -299,7 +305,13 @@ mod tests {
         let cache = SemanticCache::new(CacheConfig::default());
         let packet = dummy_packet("The lease is 60 months.");
 
-        cache.store("what is the lease term?", "corp", &None, vec![0.1, 0.2], packet);
+        cache.store(
+            "what is the lease term?",
+            "corp",
+            &None,
+            vec![0.1, 0.2],
+            packet,
+        );
 
         let hit = cache.lookup("what is the lease term?", "corp", &None);
         assert!(hit.is_some(), "should be a cache hit");

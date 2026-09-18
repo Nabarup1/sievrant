@@ -53,7 +53,13 @@ impl TreeNode {
         }
     }
 
-    fn new_leaf(id: String, label: String, level: u32, chunk_id: String, metadata: ChunkMetadata) -> Self {
+    fn new_leaf(
+        id: String,
+        label: String,
+        level: u32,
+        chunk_id: String,
+        metadata: ChunkMetadata,
+    ) -> Self {
         Self {
             id,
             label,
@@ -66,12 +72,8 @@ impl TreeNode {
     }
 
     fn score(&self, query_terms: &[&str]) -> f64 {
-        let text = format!(
-            "{} {}",
-            self.label,
-            self.summary.as_deref().unwrap_or("")
-        )
-        .to_lowercase();
+        let text =
+            format!("{} {}", self.label, self.summary.as_deref().unwrap_or("")).to_lowercase();
 
         let matches = query_terms
             .iter()
@@ -89,9 +91,7 @@ impl TreeNode {
                 if meta.acl_groups.is_empty() {
                     return true;
                 }
-                meta.acl_groups
-                    .iter()
-                    .any(|g| allowed_groups.contains(g))
+                meta.acl_groups.iter().any(|g| allowed_groups.contains(g))
             }
         }
     }
@@ -124,7 +124,13 @@ impl TreeIndex {
         index
     }
 
-    fn insert_at(node: &mut TreeNode, chunk_id: &str, metadata: &ChunkMetadata, path: &[String], depth: usize) {
+    fn insert_at(
+        node: &mut TreeNode,
+        chunk_id: &str,
+        metadata: &ChunkMetadata,
+        path: &[String],
+        depth: usize,
+    ) {
         if path.is_empty() {
             let leaf = TreeNode::new_leaf(
                 format!("{}:leaf", chunk_id),
@@ -138,10 +144,7 @@ impl TreeIndex {
         }
 
         let label = &path[0];
-        let child = node
-            .children
-            .iter_mut()
-            .find(|c| &c.label == label);
+        let child = node.children.iter_mut().find(|c| &c.label == label);
 
         if let Some(existing) = child {
             Self::insert_at(existing, chunk_id, metadata, &path[1..], depth + 1);
@@ -251,7 +254,13 @@ impl RetrievalIndex for TreeIndex {
     async fn insert(&self, chunks: &[IndexChunk]) -> Result<()> {
         let mut root = self.root.write().unwrap();
         for chunk in chunks {
-            Self::insert_at(&mut root, &chunk.chunk_id, &chunk.metadata, &chunk.metadata.path, 0);
+            Self::insert_at(
+                &mut root,
+                &chunk.chunk_id,
+                &chunk.metadata,
+                &chunk.metadata.path,
+                0,
+            );
         }
         Ok(())
     }
@@ -268,11 +277,7 @@ impl RetrievalIndex for TreeIndex {
         RetrieverType::TreeIndex
     }
 
-    async fn ingest_tree_summary(
-        &self,
-        node_id: &str,
-        summary: String,
-    ) -> Result<()> {
+    async fn ingest_tree_summary(&self, node_id: &str, summary: String) -> Result<()> {
         self.inject_summary(node_id, summary);
         Ok(())
     }
@@ -335,7 +340,11 @@ mod tests {
     async fn tree_builds_and_finds_leaves_by_path() {
         let config = TreeIndexConfig::default();
         let idx = TreeIndex::new(config);
-        let meta = make_metadata("doc1", vec!["Article 4".into(), "Term".into()], vec!["public".into()]);
+        let meta = make_metadata(
+            "doc1",
+            vec!["Article 4".into(), "Term".into()],
+            vec!["public".into()],
+        );
 
         let chunk = IndexChunk {
             chunk_id: "doc1:0".into(),
@@ -386,5 +395,61 @@ mod tests {
             .unwrap();
 
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_build_from_chunks_and_beam_search_acl() {
+        // Create 2 chunks with different paths and ACLs
+        let meta1 = ChunkMetadata {
+            doc_id: "doc1".into(),
+            source_doc: "doc1_src".into(),
+            doc_version_hash: "hash".into(),
+            path: vec![],
+            page: None,
+            char_span: None,
+            ingested_at: chrono::Utc::now(),
+            index_generation: 1,
+            acl_groups: vec!["groupA".into()],
+            token_count: 10,
+        };
+
+        let meta2 = ChunkMetadata {
+            doc_id: "doc2".into(),
+            source_doc: "doc2_src".into(),
+            doc_version_hash: "hash".into(),
+            path: vec![],
+            page: None,
+            char_span: None,
+            ingested_at: chrono::Utc::now(),
+            index_generation: 1,
+            acl_groups: vec!["groupB".into()],
+            token_count: 10,
+        };
+
+        let chunks = vec![
+            ("chunk1".to_string(), meta1.clone(), vec!["root".into(), "branchA".into()]),
+            ("chunk2".to_string(), meta2.clone(), vec!["root".into(), "branchB".into()]),
+        ];
+
+        let index = TreeIndex::build_from_chunks(&chunks);
+
+        // Run beam search as a user with "groupA" access only
+        let mut results = vec![];
+        let root = index.root.read().unwrap();
+        
+        TreeIndex::beam_search(
+            &root,
+            &["brancha", "branchb"], // query terms
+            &["groupA".into()],      // acl filter
+            5,                       // beam_width
+            10,                      // max_depth
+            0,
+            &mut results,
+        );
+
+        // Only chunk1 should be retrieved, chunk2 is filtered out due to ACL
+        assert_eq!(results.len(), 1);
+        let (_, node) = results[0];
+        assert_eq!(node.chunk_id.as_deref(), Some("chunk1"));
     }
 }

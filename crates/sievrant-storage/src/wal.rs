@@ -28,13 +28,28 @@ pub struct ChunkData {
 /// with no matching Complete is treated as an incomplete merge on restart.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WalEntry {
-    InsertChunks { corpus: String, chunks: Vec<ChunkData> },
-    DeleteChunks { corpus: String, chunk_ids: Vec<String> },
-    MergeStart { level: usize, run_ids: Vec<String> },
-    MergeComplete { level: usize, new_run_id: String, old_run_ids: Vec<String> },
+    InsertChunks {
+        corpus: String,
+        chunks: Vec<ChunkData>,
+    },
+    DeleteChunks {
+        corpus: String,
+        chunk_ids: Vec<String>,
+    },
+    MergeStart {
+        level: usize,
+        run_ids: Vec<String>,
+    },
+    MergeComplete {
+        level: usize,
+        new_run_id: String,
+        old_run_ids: Vec<String>,
+    },
     /// Written after all previous entries have been flushed to the indexes.
     /// On restart, replay begins from the entry after the last Checkpoint.
-    Checkpoint { generation: u64 },
+    Checkpoint {
+        generation: u64,
+    },
 }
 
 /// Write-Ahead Log for durable ingestion and merge crash safety.
@@ -67,10 +82,7 @@ impl WriteAheadLog {
             .open(&segment_path)
             .map_err(|e| StorageError::Io(e.to_string()))?;
 
-        let current_size = file
-            .metadata()
-            .map(|m| m.len())
-            .unwrap_or(0);
+        let current_size = file.metadata().map(|m| m.len()).unwrap_or(0);
 
         Ok(Self {
             log_dir,
@@ -87,8 +99,8 @@ impl WriteAheadLog {
             self.rotate_segment()?;
         }
 
-        let payload = serde_json::to_vec(entry)
-            .map_err(|e| StorageError::Serialization(e.to_string()))?;
+        let payload =
+            serde_json::to_vec(entry).map_err(|e| StorageError::Serialization(e.to_string()))?;
 
         let payload_len = payload.len() as u32;
         let checksum = crc32_checksum(&payload);
@@ -162,7 +174,10 @@ impl WriteAheadLog {
             let file = File::open(segment_path).map_err(|e| StorageError::Io(e.to_string()))?;
             let mut reader = BufReader::new(file);
             if let Ok(entries) = read_entries_from_segment(&mut reader, segment_path) {
-                if entries.iter().any(|e| matches!(e, WalEntry::Checkpoint { .. })) {
+                if entries
+                    .iter()
+                    .any(|e| matches!(e, WalEntry::Checkpoint { .. }))
+                {
                     last_checkpoint_segment = Some(segment_path.clone());
                 }
             }
@@ -233,10 +248,7 @@ fn list_segment_paths(dir: &Path) -> Vec<PathBuf> {
         .unwrap_or_default()
 }
 
-fn read_entries_from_segment(
-    reader: &mut BufReader<File>,
-    path: &Path,
-) -> Result<Vec<WalEntry>> {
+fn read_entries_from_segment(reader: &mut BufReader<File>, path: &Path) -> Result<Vec<WalEntry>> {
     let mut entries = Vec::new();
 
     loop {
@@ -359,7 +371,10 @@ mod tests {
         }
 
         let segments = list_segment_paths(dir.path());
-        assert!(segments.len() > 1, "segment rotation should have created multiple files");
+        assert!(
+            segments.len() > 1,
+            "segment rotation should have created multiple files"
+        );
     }
 
     #[test]
@@ -385,6 +400,51 @@ mod tests {
         // Re-open as if recovering after crash
         let wal2 = WriteAheadLog::open(dir.path(), 64 * 1024 * 1024).unwrap();
         let recovered = wal2.replay().unwrap();
-        assert_eq!(recovered.len(), 1, "uncommitted entry should be replayed on restart");
+        assert_eq!(
+            recovered.len(),
+            1,
+            "uncommitted entry should be replayed on restart"
+        );
+    }
+
+    #[test]
+    fn test_append_replay_checkpoint_roundtrip() {
+        let dir = TempDir::new().unwrap();
+        let mut wal = WriteAheadLog::open(dir.path(), 64 * 1024 * 1024).unwrap();
+        
+        let chunk = ChunkData {
+            chunk_id: "c1".into(),
+            doc_id: "d1".into(),
+            text: "text".into(),
+            token_count: 1,
+            acl_groups: vec![],
+        };
+        wal.append(&WalEntry::InsertChunks { corpus: "corp".into(), chunks: vec![chunk.clone()] }).unwrap();
+        
+        // Append checkpoint
+        wal.append(&WalEntry::Checkpoint { generation: 42 }).unwrap();
+        
+        // Replay should return 0 entries since all previous are checkpointed
+        let replayed = wal.replay().unwrap();
+        assert_eq!(replayed.len(), 0);
+        
+        // Append one more
+        wal.append(&WalEntry::InsertChunks { corpus: "corp".into(), chunks: vec![chunk.clone()] }).unwrap();
+        let replayed2 = wal.replay().unwrap();
+        assert_eq!(replayed2.len(), 1);
+    }
+
+    #[test]
+    fn test_segment_rotation() {
+        let dir = TempDir::new().unwrap();
+        // Use a tiny limit so it rotates quickly
+        let mut wal = WriteAheadLog::open(dir.path(), 128).unwrap();
+        
+        for i in 0..10 {
+            wal.append(&WalEntry::Checkpoint { generation: i }).unwrap();
+        }
+        
+        let segments = list_segment_paths(dir.path());
+        assert!(segments.len() >= 2, "Expected multiple segments due to rotation, got {}", segments.len());
     }
 }

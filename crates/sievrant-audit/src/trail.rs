@@ -52,7 +52,8 @@ pub struct AuditLogger {
 impl AuditLogger {
     pub fn new(audit_dir: impl Into<PathBuf>) -> Result<Self> {
         let audit_dir: PathBuf = audit_dir.into();
-        fs::create_dir_all(&audit_dir).map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
+        fs::create_dir_all(&audit_dir)
+            .map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
 
         Ok(Self {
             audit_dir,
@@ -89,8 +90,11 @@ impl AuditLogger {
 
         let mut writer_guard = self.current_file.write().unwrap();
         if let Some(writer) = writer_guard.as_mut() {
-            writeln!(writer, "{}", json).map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
-            writer.flush().map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
+            writeln!(writer, "{}", json)
+                .map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
+            writer
+                .flush()
+                .map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
         }
 
         Ok(())
@@ -99,10 +103,10 @@ impl AuditLogger {
     /// Rotate logs monthly (`audit_YYYY_MM.log`)
     fn rotate_if_needed(&self, year: i32, month: u32) -> Result<()> {
         let mut current_month = self.current_month.write().unwrap();
-        
+
         if *current_month != month {
             let mut writer_guard = self.current_file.write().unwrap();
-            
+
             // Checkpoint previous month before rotating
             if writer_guard.is_some() {
                 // We'd write a finalized checksum file here in production.
@@ -112,7 +116,7 @@ impl AuditLogger {
 
             let filename = format!("audit_{year}_{month:02}.log");
             let path = self.audit_dir.join(&filename);
-            
+
             let file = OpenOptions::new()
                 .create(true)
                 .append(true)
@@ -122,7 +126,7 @@ impl AuditLogger {
             *writer_guard = Some(BufWriter::new(file));
             *current_month = month;
         }
-        
+
         Ok(())
     }
 
@@ -130,7 +134,9 @@ impl AuditLogger {
     pub async fn checkpoint(&self) -> Result<()> {
         let mut writer_guard = self.current_file.write().unwrap();
         if let Some(writer) = writer_guard.as_mut() {
-            writer.flush().map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
+            writer
+                .flush()
+                .map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
         }
         Ok(())
     }
@@ -156,9 +162,10 @@ impl IntegrityVerifier {
 
     /// Verify a specific log file for record-level tampering
     pub fn verify_file(&self, path: &Path) -> Result<VerificationResult> {
-        let file = File::open(path).map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
+        let file =
+            File::open(path).map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
         let reader = BufReader::new(file);
-        
+
         let mut count = 0;
         let mut errors = Vec::new();
 
@@ -166,12 +173,17 @@ impl IntegrityVerifier {
             let line = line.map_err(|e| SievrantError::Audit(AuditError::Io(e.to_string())))?;
             let record: AuditRecord = serde_json::from_str(&line)
                 .map_err(|e| SievrantError::Audit(AuditError::Serialization(e.to_string())))?;
-            
+
             let expected_hash = record.compute_record_hash();
             if record.record_hash != expected_hash {
-                errors.push(format!("Line {} tampered: expected {}, got {}", i + 1, expected_hash, record.record_hash));
+                errors.push(format!(
+                    "Line {} tampered: expected {}, got {}",
+                    i + 1,
+                    expected_hash,
+                    record.record_hash
+                ));
             }
-            
+
             count += 1;
         }
 
@@ -219,17 +231,17 @@ mod tests {
     async fn logs_retrieval_and_verifies_integrity() {
         let dir = TempDir::new().unwrap();
         let logger = AuditLogger::new(dir.path()).unwrap();
-        
+
         logger.log_retrieval(&dummy_packet()).await.unwrap();
         logger.log_retrieval(&dummy_packet()).await.unwrap();
         logger.checkpoint().await.unwrap();
-        
+
         let verifier = IntegrityVerifier::new(dir.path());
-        
+
         let now = Utc::now();
         let filename = format!("audit_{}_{:02}.log", now.year(), now.month());
         let log_path = dir.path().join(filename);
-        
+
         let result = verifier.verify_file(&log_path).unwrap();
         assert!(result.is_valid);
         assert_eq!(result.record_count, 2);
@@ -239,22 +251,25 @@ mod tests {
     async fn detects_tampered_record() {
         let dir = TempDir::new().unwrap();
         let logger = AuditLogger::new(dir.path()).unwrap();
-        
+
         logger.log_retrieval(&dummy_packet()).await.unwrap();
         logger.checkpoint().await.unwrap();
-        
+
         let now = Utc::now();
         let filename = format!("audit_{}_{:02}.log", now.year(), now.month());
         let log_path = dir.path().join(filename);
-        
+
         // Tamper with the file
         let content = std::fs::read_to_string(&log_path).unwrap();
-        let tampered = content.replace(r#""session_hash":"sha256:abc""#, r#""session_hash":"sha256:def""#);
+        let tampered = content.replace(
+            r#""session_hash":"sha256:abc""#,
+            r#""session_hash":"sha256:def""#,
+        );
         std::fs::write(&log_path, tampered).unwrap();
-        
+
         let verifier = IntegrityVerifier::new(dir.path());
         let result = verifier.verify_file(&log_path).unwrap();
-        
+
         assert!(!result.is_valid);
         assert_eq!(result.errors.len(), 1);
         assert!(result.errors[0].contains("tampered"));

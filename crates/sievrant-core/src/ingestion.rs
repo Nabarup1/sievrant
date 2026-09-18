@@ -98,7 +98,9 @@ impl Chunker {
                 chunk_size_tokens,
                 overlap_tokens,
             } => Self::fixed_size(doc, *chunk_size_tokens, *overlap_tokens, doc_id),
-            ChunkingStrategy::Semantic { max_chunk_tokens, .. } => {
+            ChunkingStrategy::Semantic {
+                max_chunk_tokens, ..
+            } => {
                 // Semantic splitting falls back to structure-aware for v1.
                 // Topic-shift detection via embedding similarity is added in a later iteration.
                 Self::structure_aware(doc, *max_chunk_tokens, 50, doc_id)
@@ -355,8 +357,13 @@ mod tests {
         )]);
         let strategy = ChunkingStrategy::default();
         let chunks = Chunker::chunk(&doc, &strategy, "doc1");
-        let has_nested_path = chunks.iter().any(|c| c.path.contains(&"4.1 Term".to_string()));
-        assert!(has_nested_path, "nested section path not preserved in chunks");
+        let has_nested_path = chunks
+            .iter()
+            .any(|c| c.path.contains(&"4.1 Term".to_string()));
+        assert!(
+            has_nested_path,
+            "nested section path not preserved in chunks"
+        );
     }
 
     #[test]

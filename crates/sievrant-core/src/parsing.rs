@@ -191,7 +191,8 @@ impl DocumentParser for PdfParser {
         // outline/bookmark tree to Section hierarchy. Requires &[u8] not &str.
         // The trait will be updated to accept bytes in a follow-up.
         Err(SievrantError::Internal(
-            "PDF parsing requires binary content bytes; upgrade the trait signature to &[u8]".into(),
+            "PDF parsing requires binary content bytes; upgrade the trait signature to &[u8]"
+                .into(),
         ))
     }
 }
@@ -209,7 +210,10 @@ mod tests {
 <p>Some background text here.</p>
 "#;
         let doc = parse_html(html).unwrap();
-        assert!(!doc.sections.is_empty(), "should produce at least one section");
+        assert!(
+            !doc.sections.is_empty(),
+            "should produce at least one section"
+        );
     }
 
     #[tokio::test]

@@ -142,7 +142,10 @@ impl MergeEngine {
     fn maybe_merge_level(&self, wal: &mut WriteAheadLog, level: usize) -> Result<()> {
         let should_merge = {
             let levels = self.levels.read().unwrap();
-            levels.get(level).map(|l| l.runs.len() >= l.max_runs).unwrap_or(false)
+            levels
+                .get(level)
+                .map(|l| l.runs.len() >= l.max_runs)
+                .unwrap_or(false)
         };
 
         if !should_merge {
@@ -215,7 +218,9 @@ impl MergeEngine {
     /// Check whether a chunk_id is present in any run across all levels.
     pub fn contains(&self, chunk_id: &str) -> bool {
         let contents = self.run_contents.read().unwrap();
-        contents.values().any(|ids| ids.iter().any(|id| id == chunk_id))
+        contents
+            .values()
+            .any(|ids| ids.iter().any(|id| id == chunk_id))
     }
 
     pub fn current_generation(&self) -> u64 {
@@ -267,7 +272,10 @@ mod tests {
     fn generation_increments_on_merge() {
         let dir = TempDir::new().unwrap();
         let mut wal = make_wal(&dir);
-        let config = MergeConfig { runs_per_level: 2, num_levels: 4 };
+        let config = MergeConfig {
+            runs_per_level: 2,
+            num_levels: 4,
+        };
         let engine = MergeEngine::new(config);
 
         let gen_before = engine.current_generation();
@@ -277,19 +285,27 @@ mod tests {
         engine.flush(&mut wal, &make_chunks(3, 3)).unwrap();
 
         let gen_after = engine.current_generation();
-        assert!(gen_after > gen_before, "generation must increment after merge");
+        assert!(
+            gen_after > gen_before,
+            "generation must increment after merge"
+        );
     }
 
     #[test]
     fn all_chunks_retrievable_after_cascading_merges() {
         let dir = TempDir::new().unwrap();
         let mut wal = make_wal(&dir);
-        let config = MergeConfig { runs_per_level: 2, num_levels: 4 };
+        let config = MergeConfig {
+            runs_per_level: 2,
+            num_levels: 4,
+        };
         let engine = MergeEngine::new(config);
 
         let total = 64;
         for batch_start in (0..total).step_by(4) {
-            engine.flush(&mut wal, &make_chunks(batch_start, 4)).unwrap();
+            engine
+                .flush(&mut wal, &make_chunks(batch_start, 4))
+                .unwrap();
         }
 
         for i in 0..total {

@@ -1,8 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::RwLock;
 
-
-
 use crate::metering::UsageRecord;
 
 /// Per-tenant token savings aggregator.

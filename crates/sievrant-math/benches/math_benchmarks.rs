@@ -1,7 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use sievrant_core::types::{ChunkMetadata, RankedCandidate, RetrieverType};
 use sievrant_math::{
-    conformal::{compute_threshold, nonconformity_score, CalibrationSet, CalibrationEntry, CalibrationScore},
+    conformal::{
+        compute_threshold, nonconformity_score, CalibrationEntry, CalibrationScore, CalibrationSet,
+    },
     rrf::reciprocal_rank_fusion,
     submodular::submodular_select,
 };
@@ -39,9 +41,7 @@ fn bench_rrf_fusion(c: &mut Criterion) {
             let list4 = generate_candidates(size, "g");
             let lists = vec![list1, list2, list3, list4];
 
-            b.iter(|| {
-                reciprocal_rank_fusion(black_box(&lists), black_box(60))
-            })
+            b.iter(|| reciprocal_rank_fusion(black_box(&lists), black_box(60)))
         });
     }
     group.finish();
@@ -57,19 +57,20 @@ fn bench_submodular_selection(c: &mut Criterion) {
             }
 
             // Simulate reranked output
-            let reranked = candidates.into_iter().map(|c| {
-                sievrant_core::types::RerankedCandidate {
-                    chunk_id: c.chunk_id,
-                    text: c.text,
-                    metadata: c.metadata,
-                    fused_score: c.score,
-                    rerank_score: c.score, // Dummy
-                }
-            }).collect::<Vec<_>>();
+            let reranked = candidates
+                .into_iter()
+                .map(|c| {
+                    sievrant_core::types::RerankedCandidate {
+                        chunk_id: c.chunk_id,
+                        text: c.text,
+                        metadata: c.metadata,
+                        fused_score: c.score,
+                        rerank_score: c.score, // Dummy
+                    }
+                })
+                .collect::<Vec<_>>();
 
-            b.iter(|| {
-                submodular_select(black_box(&reranked), black_box(1024), black_box(0.3))
-            })
+            b.iter(|| submodular_select(black_box(&reranked), black_box(1024), black_box(0.3)))
         });
     }
     group.finish();
@@ -80,8 +81,8 @@ fn bench_conformal_threshold(c: &mut Criterion) {
     for size in [100, 500, 1000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &n| {
             // Generate nonconformity scores wrapped in CalibrationSet
-            let entries = (0..n).map(|i| {
-                CalibrationEntry {
+            let entries = (0..n)
+                .map(|i| CalibrationEntry {
                     query: format!("q_{}", i),
                     relevant_chunk_ids: vec!["c1".into()],
                     scores: vec![CalibrationScore {
@@ -89,14 +90,14 @@ fn bench_conformal_threshold(c: &mut Criterion) {
                         nonconformity_score: i as f64 / n as f64,
                         is_relevant: true,
                     }],
-                }
-            }).collect();
+                })
+                .collect();
             let cal_set = CalibrationSet {
                 id: "test-set".into(),
                 entries,
                 created_at: chrono::Utc::now(),
             };
-            
+
             b.iter(|| {
                 let _ = compute_threshold(black_box(&cal_set), black_box(0.95));
             })
@@ -112,7 +113,7 @@ fn bench_nonconformity_score(c: &mut Criterion) {
                 black_box(nonconformity_score(
                     black_box(0.8),
                     black_box(0.5),
-                    black_box(i as f64 / 1000.0)
+                    black_box(i as f64 / 1000.0),
                 ));
             }
         })

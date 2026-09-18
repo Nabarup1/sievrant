@@ -73,7 +73,11 @@ pub fn mean_pool(token_vectors: &[&[f32]]) -> Option<Vec<f32>> {
     let mut pooled = vec![0.0f32; dim];
 
     for vec in token_vectors {
-        debug_assert_eq!(vec.len(), dim, "all token vectors must have the same dimensionality");
+        debug_assert_eq!(
+            vec.len(),
+            dim,
+            "all token vectors must have the same dimensionality"
+        );
         for (acc, v) in pooled.iter_mut().zip(vec.iter()) {
             *acc += v;
         }

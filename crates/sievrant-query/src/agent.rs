@@ -56,11 +56,7 @@ impl RetrievalState {
 #[async_trait]
 pub trait AgenticRetriever: Send + Sync {
     /// Execute the full multi-hop loop and return the final state.
-    async fn execute_multi_hop(
-        &self,
-        query: &str,
-        max_hops: usize,
-    ) -> Result<RetrievalState>;
+    async fn execute_multi_hop(&self, query: &str, max_hops: usize) -> Result<RetrievalState>;
 }
 
 /// Default agentic retriever.
@@ -71,11 +67,18 @@ pub trait AgenticRetriever: Send + Sync {
 /// sufficiency or `max_hops` is exhausted.
 pub struct DefaultAgenticRetriever<R, L>
 where
-    R: Fn(String) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<EvidenceChunk>>> + Send>>
-        + Send
+    R: Fn(
+            String,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Vec<EvidenceChunk>>> + Send>,
+        > + Send
         + Sync
         + 'static,
-    L: Fn(String, String) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<String>>> + Send>>
+    L: Fn(
+            String,
+            String,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<String>>> + Send>>
         + Send
         + Sync
         + 'static,
@@ -90,20 +93,23 @@ where
 #[async_trait]
 impl<R, L> AgenticRetriever for DefaultAgenticRetriever<R, L>
 where
-    R: Fn(String) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<EvidenceChunk>>> + Send>>
-        + Send
+    R: Fn(
+            String,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = Result<Vec<EvidenceChunk>>> + Send>,
+        > + Send
         + Sync
         + 'static,
-    L: Fn(String, String) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<String>>> + Send>>
+    L: Fn(
+            String,
+            String,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<String>>> + Send>>
         + Send
         + Sync
         + 'static,
 {
-    async fn execute_multi_hop(
-        &self,
-        query: &str,
-        max_hops: usize,
-    ) -> Result<RetrievalState> {
+    async fn execute_multi_hop(&self, query: &str, max_hops: usize) -> Result<RetrievalState> {
         let mut state = RetrievalState::new(query, max_hops);
 
         // First pass: treat the original query as the initial sub-query.
@@ -119,14 +125,14 @@ where
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            let sub_queries = (self.decompose_fn)(
-                state.original_query.clone(),
-                evidence_summary,
-            )
-            .await?;
+            let sub_queries =
+                (self.decompose_fn)(state.original_query.clone(), evidence_summary).await?;
 
             if sub_queries.is_empty() {
-                info!(iteration = state.iteration_count, "LLM signalled evidence sufficient");
+                info!(
+                    iteration = state.iteration_count,
+                    "LLM signalled evidence sufficient"
+                );
                 state.satisfied = true;
                 break;
             }
@@ -205,9 +211,11 @@ mod tests {
         let call_count_clone = call_count.clone();
 
         let retriever = DefaultAgenticRetriever {
-            retrieval_fn: |_q| Box::pin(async {
-                Ok(vec![make_chunk("c1")]) // always returns same chunk
-            }),
+            retrieval_fn: |_q| {
+                Box::pin(async {
+                    Ok(vec![make_chunk("c1")]) // always returns same chunk
+                })
+            },
             decompose_fn: move |_q, _e| {
                 let n = call_count_clone.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 Box::pin(async move {
@@ -220,8 +228,15 @@ mod tests {
             },
         };
 
-        let state = retriever.execute_multi_hop("multi hop Q", 10).await.unwrap();
+        let state = retriever
+            .execute_multi_hop("multi hop Q", 10)
+            .await
+            .unwrap();
         // Deduplication must prevent duplicates even when multiple hops return the same chunk.
-        assert_eq!(state.accumulated_evidence.len(), 1, "duplicate chunks must be deduplicated");
+        assert_eq!(
+            state.accumulated_evidence.len(),
+            1,
+            "duplicate chunks must be deduplicated"
+        );
     }
 }

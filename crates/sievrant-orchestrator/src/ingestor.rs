@@ -4,7 +4,7 @@ use sievrant_core::{
     config::SievrantConfig,
     error::Result,
     ingestion::{
-        build_chunk_metadata, content_hash, Chunk, ChunkingStrategy, Chunker, IngestionResult,
+        build_chunk_metadata, content_hash, Chunk, Chunker, ChunkingStrategy, IngestionResult,
         ParsedDocument, Section,
     },
     types::Document,
@@ -23,7 +23,11 @@ impl IngestionPipeline {
     }
 
     /// Ingest a single document. Returns an IngestionResult with chunk count and hash.
-    pub async fn ingest(&self, doc: Document, _corpus: &str) -> Result<(IngestionResult, Vec<EnrichedChunk>)> {
+    pub async fn ingest(
+        &self,
+        doc: Document,
+        _corpus: &str,
+    ) -> Result<(IngestionResult, Vec<EnrichedChunk>)> {
         let doc_version_hash = content_hash(&doc.content);
 
         let parsed = self.parse_document(&doc);
@@ -197,7 +201,10 @@ mod tests {
     #[tokio::test]
     async fn ingestion_produces_chunks_with_correct_metadata() {
         let pipeline = make_pipeline();
-        let doc = make_doc("# Section 1\n\nSome content here.\n\n## Section 2\n\nMore content.", vec!["public".into()]);
+        let doc = make_doc(
+            "# Section 1\n\nSome content here.\n\n## Section 2\n\nMore content.",
+            vec!["public".into()],
+        );
         let (result, enriched) = pipeline.ingest(doc, "test_corpus").await.unwrap();
         assert!(result.chunk_count > 0);
         assert!(result.doc_version_hash.starts_with("sha256:"));

@@ -1,7 +1,4 @@
-use std::{
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{path::PathBuf, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
@@ -97,7 +94,8 @@ impl CorpusManager {
         std::fs::create_dir_all(&corpus_dir).map_err(|e| StorageError::Io(e.to_string()))?;
         self.persist_metadata(name, &metadata)?;
 
-        self.corpora.insert(name.to_string(), Arc::new(CorpusState::new(metadata)));
+        self.corpora
+            .insert(name.to_string(), Arc::new(CorpusState::new(metadata)));
         Ok(())
     }
 
@@ -151,7 +149,9 @@ impl CorpusManager {
             deleted_at: None,
         };
 
-        corpus_state.documents.insert(doc_id.to_string(), record.clone());
+        corpus_state
+            .documents
+            .insert(doc_id.to_string(), record.clone());
         Ok(record)
     }
 
@@ -194,7 +194,7 @@ impl CorpusManager {
             .get(doc_id)
             .map(|existing| existing.version_hash == new_hash)
             .unwrap_or(false);
-            
+
         if has_same_hash {
             // No content change; skip expensive reingestion
             return Ok(false);
@@ -217,8 +217,8 @@ impl CorpusManager {
 
     fn persist_metadata(&self, name: &str, metadata: &CorpusMetadata) -> Result<()> {
         let path = self.corpus_dir(name).join("metadata.json");
-        let json =
-            serde_json::to_string_pretty(metadata).map_err(|e| StorageError::Serialization(e.to_string()))?;
+        let json = serde_json::to_string_pretty(metadata)
+            .map_err(|e| StorageError::Serialization(e.to_string()))?;
         std::fs::write(&path, json).map_err(|e| StorageError::Io(e.to_string()))?;
         Ok(())
     }
@@ -269,7 +269,8 @@ mod tests {
     #[test]
     fn create_and_list_corpus() {
         let (_dir, mgr) = manager();
-        mgr.create("legal-contracts", Some("Lease agreements".into())).unwrap();
+        mgr.create("legal-contracts", Some("Lease agreements".into()))
+            .unwrap();
         let list = mgr.list();
         assert!(list.iter().any(|m| m.name == "legal-contracts"));
     }
@@ -294,11 +295,22 @@ mod tests {
         let (_dir, mgr) = manager();
         mgr.create("corp", None).unwrap();
 
-        mgr.add_document("corp", "d1", "doc.pdf", "original content", vec!["c1".into()]).unwrap();
-        let changed = mgr.update_document("corp", "d1", "doc.pdf", "new content", vec!["c2".into()]).unwrap();
+        mgr.add_document(
+            "corp",
+            "d1",
+            "doc.pdf",
+            "original content",
+            vec!["c1".into()],
+        )
+        .unwrap();
+        let changed = mgr
+            .update_document("corp", "d1", "doc.pdf", "new content", vec!["c2".into()])
+            .unwrap();
         assert!(changed, "different content should trigger update");
 
-        let not_changed = mgr.update_document("corp", "d1", "doc.pdf", "new content", vec!["c2".into()]).unwrap();
+        let not_changed = mgr
+            .update_document("corp", "d1", "doc.pdf", "new content", vec!["c2".into()])
+            .unwrap();
         assert!(!not_changed, "same content should not trigger update");
     }
 
@@ -306,7 +318,14 @@ mod tests {
     fn removed_document_chunks_are_marked_deleted() {
         let (_dir, mgr) = manager();
         mgr.create("corp", None).unwrap();
-        mgr.add_document("corp", "d1", "doc.pdf", "text", vec!["c1".into(), "c2".into()]).unwrap();
+        mgr.add_document(
+            "corp",
+            "d1",
+            "doc.pdf",
+            "text",
+            vec!["c1".into(), "c2".into()],
+        )
+        .unwrap();
         mgr.remove_document("corp", "d1").unwrap();
 
         let state = mgr.get("corp").unwrap();
@@ -323,6 +342,9 @@ mod tests {
             mgr.create("persistent-corp", Some("test".into())).unwrap();
         }
         let mgr2 = CorpusManager::new(dir.path()).unwrap();
-        assert!(mgr2.get("persistent-corp").is_some(), "corpus must survive manager reload");
+        assert!(
+            mgr2.get("persistent-corp").is_some(),
+            "corpus must survive manager reload"
+        );
     }
 }

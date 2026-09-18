@@ -1,8 +1,8 @@
-use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use tonic::{Request, Response, Status};
-use tracing::{info, error};
+use tracing::{error, info};
 
 use sievrant::Corpus;
 use sievrant_core::types::RetrievalConfig;
@@ -12,7 +12,10 @@ pub mod proto {
 }
 
 use proto::sievrant_service_server::SievrantService;
-use proto::{RetrieveRequest, RetrieveResponse, IngestRequest, IngestResponse, QueryRequest, QueryResponsePart, EvidenceChunk};
+use proto::{
+    EvidenceChunk, IngestRequest, IngestResponse, QueryRequest, QueryResponsePart, RetrieveRequest,
+    RetrieveResponse,
+};
 use tokio_stream::wrappers::ReceiverStream;
 
 pub struct SievrantGrpcService {
@@ -21,14 +24,19 @@ pub struct SievrantGrpcService {
 }
 
 impl SievrantGrpcService {
-    pub fn new(corpora: Arc<RwLock<HashMap<String, Arc<Corpus>>>>, api_keys: Arc<RwLock<HashMap<String, String>>>) -> Self {
+    pub fn new(
+        corpora: Arc<RwLock<HashMap<String, Arc<Corpus>>>>,
+        api_keys: Arc<RwLock<HashMap<String, String>>>,
+    ) -> Self {
         Self { corpora, api_keys }
     }
 
     fn verify_token(&self, req: &Request<()>) -> Result<String, Status> {
         match req.metadata().get("authorization") {
             Some(t) => {
-                let token_str = t.to_str().map_err(|_| Status::unauthenticated("Invalid auth header format"))?;
+                let token_str = t
+                    .to_str()
+                    .map_err(|_| Status::unauthenticated("Invalid auth header format"))?;
                 if !token_str.starts_with("Bearer ") {
                     return Err(Status::unauthenticated("Bearer token required"));
                 }
@@ -40,7 +48,9 @@ impl SievrantGrpcService {
                 let hashed = format!("{:x}", hasher.finalize());
 
                 let keys = self.api_keys.read().unwrap();
-                keys.get(&hashed).cloned().ok_or_else(|| Status::unauthenticated("Invalid API key"))
+                keys.get(&hashed)
+                    .cloned()
+                    .ok_or_else(|| Status::unauthenticated("Invalid API key"))
             }
             None => Err(Status::unauthenticated("Missing authorization header")),
         }
@@ -55,23 +65,27 @@ impl SievrantService for SievrantGrpcService {
     ) -> Result<Response<RetrieveResponse>, Status> {
         // Actually, we need to extract auth from the passed `request`.
         // We'll refactor slightly. Let's do it right here:
-        let token_str = request.metadata().get("authorization")
+        let token_str = request
+            .metadata()
+            .get("authorization")
             .ok_or_else(|| Status::unauthenticated("Missing authorization header"))?
             .to_str()
             .map_err(|_| Status::unauthenticated("Invalid auth header format"))?;
-            
+
         if !token_str.starts_with("Bearer ") {
             return Err(Status::unauthenticated("Bearer token required"));
         }
         let raw_token = &token_str[7..];
-        
+
         let tenant_id = {
             use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(raw_token.as_bytes());
             let hashed = format!("{:x}", hasher.finalize());
             let keys = self.api_keys.read().unwrap();
-            keys.get(&hashed).cloned().ok_or_else(|| Status::unauthenticated("Invalid API key"))?
+            keys.get(&hashed)
+                .cloned()
+                .ok_or_else(|| Status::unauthenticated("Invalid API key"))?
         };
 
         let req = request.into_inner();
@@ -81,7 +95,12 @@ impl SievrantService for SievrantGrpcService {
             let lock = self.corpora.read().unwrap();
             match lock.get(&req.corpus) {
                 Some(c) => Arc::clone(c),
-                None => return Err(Status::not_found(format!("Corpus '{}' not found", req.corpus))),
+                None => {
+                    return Err(Status::not_found(format!(
+                        "Corpus '{}' not found",
+                        req.corpus
+                    )))
+                }
             }
         };
 
@@ -91,14 +110,22 @@ impl SievrantService for SievrantGrpcService {
         config.skip_cache = req.skip_cache;
         config.user_id = Some(tenant_id);
 
-        match corpus.orchestrator.retrieve(&req.query, &req.corpus, config).await {
+        match corpus
+            .orchestrator
+            .retrieve(&req.query, &req.corpus, config)
+            .await
+        {
             Ok(packet) => {
-                let evidence_chunks = packet.evidence.into_iter().map(|e| EvidenceChunk {
-                    chunk_id: e.chunk_id,
-                    source_doc: e.source_doc,
-                    text: e.text,
-                    rrf_score: e.rrf_score,
-                }).collect();
+                let evidence_chunks = packet
+                    .evidence
+                    .into_iter()
+                    .map(|e| EvidenceChunk {
+                        chunk_id: e.chunk_id,
+                        source_doc: e.source_doc,
+                        text: e.text,
+                        rrf_score: e.rrf_score,
+                    })
+                    .collect();
 
                 let resp = RetrieveResponse {
                     query_id: packet.query_id.0,
@@ -126,11 +153,14 @@ impl SievrantService for SievrantGrpcService {
     ) -> Result<Response<IngestResponse>, Status> {
         // Auth omitted for brevity in stub
         let req = request.into_inner();
-        
+
         let _corpus = {
             let lock = self.corpora.read().unwrap();
             if !lock.contains_key(&req.corpus) {
-                return Err(Status::not_found(format!("Corpus '{}' not found", req.corpus)));
+                return Err(Status::not_found(format!(
+                    "Corpus '{}' not found",
+                    req.corpus
+                )));
             }
         };
 
@@ -149,11 +179,21 @@ impl SievrantService for SievrantGrpcService {
         request: Request<QueryRequest>,
     ) -> Result<Response<Self::QueryStreamStream>, Status> {
         let (tx, rx) = tokio::sync::mpsc::channel(4);
-        
+
         tokio::spawn(async move {
-            let parts = vec!["Streaming ", "is ", "implemented ", "but ", "orchestrator ", "returns ", "bulk."];
+            let parts = vec![
+                "Streaming ",
+                "is ",
+                "implemented ",
+                "but ",
+                "orchestrator ",
+                "returns ",
+                "bulk.",
+            ];
             for part in parts {
-                let p = QueryResponsePart { text_chunk: part.to_string() };
+                let p = QueryResponsePart {
+                    text_chunk: part.to_string(),
+                };
                 if tx.send(Ok(p)).await.is_err() {
                     break;
                 }

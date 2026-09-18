@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{BinaryHeap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
 
 use sievrant_core::types::{RerankedCandidate, SelectedEvidence};
 
@@ -21,7 +21,8 @@ impl PartialEq for QueueItem {
 impl Eq for QueueItem {}
 impl PartialOrd for QueueItem {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.marginal_gain_per_token.partial_cmp(&other.marginal_gain_per_token)
+        self.marginal_gain_per_token
+            .partial_cmp(&other.marginal_gain_per_token)
     }
 }
 impl Ord for QueueItem {
@@ -98,7 +99,7 @@ pub fn submodular_select(
 ) -> Vec<SelectedEvidence> {
     let mut selected: Vec<SelectedEvidence> = Vec::new();
     let mut selected_token_sets: Vec<Vec<u64>> = Vec::new(); // Store hashes parallel to `selected`
-    
+
     let mut remaining_budget = token_budget;
     let mut used: HashSet<usize> = HashSet::new();
 
@@ -171,7 +172,7 @@ pub fn submodular_select(
                 &refs,
                 diversity_weight,
             );
-            
+
             queue.push(QueueItem {
                 candidate_idx: top.candidate_idx,
                 marginal_gain_per_token: new_marginal / token_cost.max(1) as f64,
@@ -251,7 +252,10 @@ mod tests {
             make_candidate("c3", 0.7, 100, "eta theta iota"),
         ];
         let selected = submodular_select(&candidates, 1000, 0.0);
-        assert_eq!(selected[0].chunk_id, "c2", "highest rerank score must be first");
+        assert_eq!(
+            selected[0].chunk_id, "c2",
+            "highest rerank score must be first"
+        );
     }
 
     #[test]

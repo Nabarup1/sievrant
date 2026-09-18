@@ -3,7 +3,11 @@ use reqwest::Client;
 use serde_json::json;
 
 #[derive(Parser)]
-#[command(name = "sievrant", version, about = "CLI for Sievrant Retrieval Engine")]
+#[command(
+    name = "sievrant",
+    version,
+    about = "CLI for Sievrant Retrieval Engine"
+)]
 struct Cli {
     #[arg(short, long, default_value = "http://localhost:8080")]
     url: String,
@@ -45,15 +49,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(token) = &cli.token {
                 req = req.bearer_auth(token);
             }
-            
-            let res = req.json(&json!({
-                "corpus": corpus,
-                "query": query,
-                "config": {}
-            })).send().await?;
-            
+
+            let res = req
+                .json(&json!({
+                    "corpus": corpus,
+                    "query": query,
+                    "config": {}
+                }))
+                .send()
+                .await?;
+
             println!("Status: {}", res.status());
-            println!("{}", serde_json::to_string_pretty(&res.json::<serde_json::Value>().await?)?);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&res.json::<serde_json::Value>().await?)?
+            );
         }
     }
 

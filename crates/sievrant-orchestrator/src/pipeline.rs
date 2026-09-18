@@ -11,6 +11,10 @@ use sievrant_core::{
     },
 };
 use sievrant_index::vector::IndexQuery;
+use sievrant_llm::{
+    provider::{LlmRequest, Message, Role},
+    LlmProvider,
+};
 use sievrant_math::{
     conformal::{conformal_gate, nonconformity_score},
     rrf::reciprocal_rank_fusion,
@@ -21,10 +25,6 @@ use sievrant_query::{
     router::QueryRouter,
 };
 use sievrant_rerank::{rerank_candidates, Reranker};
-use sievrant_llm::{
-    provider::{LlmRequest, Message, Role},
-    LlmProvider,
-};
 
 use sievrant_acl::resolver::AclResolver;
 use sievrant_index::RetrievalIndex;
@@ -73,9 +73,17 @@ fn classify_query_taxonomy(query: &str) -> QueryTaxonomy {
     let q = query.to_lowercase();
     if q.contains("code") || q.contains("function") || q.contains("struct") || q.contains("impl") {
         QueryTaxonomy::Coding
-    } else if q.contains("summarize") || q.contains("summary") || q.contains("overview") || q.len() > 150 {
+    } else if q.contains("summarize")
+        || q.contains("summary")
+        || q.contains("overview")
+        || q.len() > 150
+    {
         QueryTaxonomy::Summarization
-    } else if q.contains("why") || q.contains("how") || q.contains("analyze") || q.contains("compare") {
+    } else if q.contains("why")
+        || q.contains("how")
+        || q.contains("analyze")
+        || q.contains("compare")
+    {
         QueryTaxonomy::Analytical
     } else {
         QueryTaxonomy::Factoid
@@ -176,15 +184,11 @@ impl RetrievalOrchestrator {
         let threshold = self.calibration.threshold(corpus, &taxonomy);
 
         for chunk in &mut selected {
-            chunk.nonconformity_score = nonconformity_score(
-                chunk.rerank_score,
-                chunk.fused_score,
-                0.0,
-            );
+            chunk.nonconformity_score =
+                nonconformity_score(chunk.rerank_score, chunk.fused_score, 0.0);
         }
 
-        let conformal_result =
-            conformal_gate(selected, threshold, self.min_evidence_count);
+        let conformal_result = conformal_gate(selected, threshold, self.min_evidence_count);
         stages_ms.conformal_gate = t.elapsed().as_millis() as u64;
 
         let decision = conformal_result.decision.clone();
@@ -229,12 +233,8 @@ impl RetrievalOrchestrator {
             })
             .collect();
 
-        let session_hash = compute_session_hash(
-            &query_id,
-            query,
-            &evidence_chunks,
-            answer.as_deref(),
-        );
+        let session_hash =
+            compute_session_hash(&query_id, query, &evidence_chunks, answer.as_deref());
 
         let packet = EvidencePacket {
             query_id,
@@ -296,7 +296,10 @@ impl RetrievalOrchestrator {
         );
 
         let req = LlmRequest {
-            messages: vec![Message { role: Role::User, content: prompt }],
+            messages: vec![Message {
+                role: Role::User,
+                content: prompt,
+            }],
             max_tokens: 1024,
             temperature: 0.0,
             system_prompt: None,
@@ -316,8 +319,12 @@ async fn parallel_index_search(
     acl_filter: &[String],
     limit: usize,
 ) -> (Vec<Vec<RankedCandidate>>, Vec<String>) {
-    let vec_query = IndexQuery::Vector { embedding: query.embedding.clone() };
-    let bm25_query = IndexQuery::Lexical { text: query.original.clone() };
+    let vec_query = IndexQuery::Vector {
+        embedding: query.embedding.clone(),
+    };
+    let bm25_query = IndexQuery::Lexical {
+        text: query.original.clone(),
+    };
     let tree_query = IndexQuery::Structural {
         text: query.original.clone(),
         path_hints: vec![],
@@ -376,5 +383,152 @@ fn route_into_packet_route(route: &Route) -> sievrant_core::types::Route {
         Route::Standard => sievrant_core::types::Route::Standard,
         Route::Slow => sievrant_core::types::Route::Slow,
         Route::Cached => sievrant_core::types::Route::Cached,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use sievrant_core::types::{RetrieverType, RankedCandidate};
+    use sievrant_index::vector::{IndexQuery, IndexChunk, RetrievalIndex};
+    use sievrant_llm::provider::{LlmRequest, LlmResponse, LlmProvider};
+    use sievrant_rerank::Reranker;
+    use std::sync::Arc;
+
+    struct MockIndex;
+    #[async_trait]
+    impl RetrievalIndex for MockIndex {
+        async fn search(&self, _q: &IndexQuery, _a: &[String], _l: usize) -> Result<Vec<RankedCandidate>> { 
+            use chrono::Utc;
+            use sievrant_core::types::ChunkMetadata;
+            Ok(vec![RankedCandidate {
+                chunk_id: "mock_chunk".into(),
+                score: 0.9,
+                retriever: RetrieverType::VectorIndex,
+                text: "mock evidence".into(),
+                metadata: ChunkMetadata {
+                    doc_id: "doc1".into(),
+                    source_doc: "doc".into(),
+                    doc_version_hash: "hash".into(),
+                    path: vec![],
+                    page: None,
+                    char_span: None,
+                    ingested_at: Utc::now(),
+                    index_generation: 1,
+                    acl_groups: vec![],
+                    token_count: 10,
+                },
+            }]) 
+        }
+        async fn insert(&self, _c: &[IndexChunk]) -> Result<()> { Ok(()) }
+        async fn delete(&self, _ids: &[String]) -> Result<()> { Ok(()) }
+        fn index_type(&self) -> RetrieverType { RetrieverType::VectorIndex }
+    }
+
+    struct MockLlm;
+    #[async_trait]
+    impl LlmProvider for MockLlm {
+        async fn complete(&self, _req: LlmRequest) -> Result<LlmResponse> {
+            use sievrant_llm::provider::{TokenUsage, FinishReason};
+            Ok(LlmResponse { 
+                content: "Mock answer".into(), 
+                usage: TokenUsage::default(),
+                model: "mock-model".into(),
+                finish_reason: FinishReason::Stop,
+            })
+        }
+        fn supports_vision(&self) -> bool { false }
+        fn context_window(&self) -> usize { 4096 }
+        fn model_id(&self) -> &str { "mock-model" }
+    }
+
+    struct MockCache;
+    #[async_trait]
+    impl SemanticCache for MockCache {
+        async fn lookup(&self, _q: &str, _c: &str, _u: &Option<String>) -> Result<Option<EvidencePacket>> { Ok(None) }
+        async fn store(&self, _q: &str, _c: &str, _u: &Option<String>, _p: &EvidencePacket) -> Result<()> { Ok(()) }
+    }
+
+    struct MockReranker;
+    #[async_trait]
+    impl Reranker for MockReranker {
+        async fn rerank(&self, _q: &str, _d: &[&str]) -> Result<Vec<f64>> { Ok(_d.iter().map(|_| 0.9).collect()) }
+        fn name(&self) -> &str { "mock-reranker" }
+    }
+
+    struct MockCalibration;
+    impl CalibrationManager for MockCalibration {
+        fn threshold(&self, _c: &str, _t: &QueryTaxonomy) -> f64 { 0.5 }
+    }
+
+    struct MockCoverage;
+    impl CoverageMonitor for MockCoverage {
+        fn record(&self, _c: &str, _covered: bool) {}
+        fn empirical_coverage_30d(&self, _c: &str) -> Option<f64> { Some(0.8) }
+    }
+
+    struct MockAclResolver;
+    #[async_trait]
+    impl AclResolver for MockAclResolver {
+        async fn resolve(&self, _user_id: Option<&str>, _corpus: &str) -> Result<Vec<String>> {
+            Ok(vec!["public".into()])
+        }
+    }
+
+    struct MockEmbedding;
+    #[async_trait]
+    impl sievrant_query::EmbeddingProvider for MockEmbedding {
+        async fn embed(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
+            Ok(texts.iter().map(|_| vec![0.0; 128]).collect())
+        }
+        fn dimensions(&self) -> usize { 128 }
+    }
+
+    #[tokio::test]
+    async fn test_orchestrator_pipeline_retrieve() {
+        use sievrant_query::processing::QueryProcessingConfig;
+        use sievrant_core::types::RouteStrategy;
+        use sievrant_query::router::RoutingConfig;
+        
+        let orchestrator = RetrievalOrchestrator {
+            cache: Arc::new(MockCache),
+            router: Arc::new(QueryRouter::new(RoutingConfig::default())),
+            query_processor: Arc::new(QueryProcessor::new(
+                Arc::new(MockLlm),
+                Arc::new(MockEmbedding),
+                QueryProcessingConfig::default()
+            )),
+            acl_resolver: Arc::new(MockAclResolver),
+            indexes: IndexSet {
+                vector: Arc::new(MockIndex),
+                bm25: Arc::new(MockIndex),
+                tree: Arc::new(MockIndex),
+                graph: Arc::new(MockIndex),
+            },
+            reranker: Arc::new(MockReranker),
+            llm: Arc::new(MockLlm),
+            calibration: Arc::new(MockCalibration),
+            coverage_monitor: Arc::new(MockCoverage),
+            search_limit: 10,
+            min_evidence_count: 1,
+        };
+
+        let config = RetrievalConfig {
+            coverage: 0.95,
+            token_budget: 4096,
+            route: RouteStrategy::Standard,
+            user_id: None,
+            skip_cache: true,
+            rerank_top_n: 5,
+            rrf_k: 60,
+        };
+
+        let result = orchestrator.retrieve("test query", "test corpus", config).await;
+        assert!(result.is_ok());
+        let packet = result.unwrap();
+        
+        assert_eq!(packet.answer, Some("Mock answer".to_string()));
+        assert_eq!(packet.decision, Decision::Answered);
     }
 }

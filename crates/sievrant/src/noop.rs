@@ -3,8 +3,8 @@ use sievrant_core::{
     error::Result,
     types::{EvidencePacket, QueryTaxonomy},
 };
+use sievrant_llm::{FinishReason, LlmProvider, LlmRequest, LlmResponse, TokenUsage};
 use sievrant_orchestrator::pipeline::{CalibrationManager, CoverageMonitor, SemanticCache};
-use sievrant_llm::{LlmProvider, LlmRequest, LlmResponse, TokenUsage, FinishReason};
 
 pub struct NoopCache;
 #[async_trait]
@@ -55,15 +55,15 @@ impl LlmProvider for NoopLlm {
             finish_reason: FinishReason::Stop,
         })
     }
-    
+
     fn supports_vision(&self) -> bool {
         false
     }
-    
+
     fn model_id(&self) -> &str {
         "noop-llm"
     }
-    
+
     fn context_window(&self) -> usize {
         128000
     }

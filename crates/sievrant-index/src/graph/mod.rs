@@ -1,9 +1,6 @@
 pub mod ppr;
 
-use std::{
-    collections::HashSet,
-    sync::RwLock,
-};
+use std::{collections::HashSet, sync::RwLock};
 
 use async_trait::async_trait;
 
@@ -27,8 +24,10 @@ pub fn extract_entities(text: &str) -> Vec<String> {
     for window in words.windows(2) {
         let first = window[0];
         let second = window[1];
-        if ["Section", "Article", "Clause", "Exhibit", "Schedule", "Appendix"]
-            .contains(&first)
+        if [
+            "Section", "Article", "Clause", "Exhibit", "Schedule", "Appendix",
+        ]
+        .contains(&first)
         {
             let entity = format!("{first} {second}");
             if seen.insert(entity.clone()) {
@@ -59,7 +58,11 @@ pub fn extract_entities(text: &str) -> Vec<String> {
         let mut phrase = Vec::new();
 
         for (i, word) in words.iter().enumerate() {
-            let is_cap = word.chars().next().map(|c| c.is_uppercase()).unwrap_or(false);
+            let is_cap = word
+                .chars()
+                .next()
+                .map(|c| c.is_uppercase())
+                .unwrap_or(false);
             let is_sentence_start = i == 0;
 
             if is_cap && !is_sentence_start {
@@ -148,8 +151,7 @@ impl RetrievalIndex for GraphIndex {
                 }
                 let chunk_id = node.chunk_id.as_ref()?.clone();
 
-                if !acl_filter.is_empty()
-                    && !node.acl_groups.iter().any(|g| acl_filter.contains(g))
+                if !acl_filter.is_empty() && !node.acl_groups.iter().any(|g| acl_filter.contains(g))
                 {
                     return None;
                 }
@@ -175,8 +177,11 @@ impl RetrievalIndex for GraphIndex {
             })
             .collect();
 
-        candidates
-            .sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         candidates.truncate(limit);
 
         Ok(candidates)
@@ -231,15 +236,39 @@ mod tests {
         let node_b = kg.get_or_insert_entity("Lease Agreement");
         let node_c = kg.get_or_insert_entity("Payment Terms");
 
-        kg.graph.add_edge(node_a, node_b, GraphEdge { relation: "references".into(), weight: 1.0 });
-        kg.graph.add_edge(node_b, node_c, GraphEdge { relation: "contains".into(), weight: 1.0 });
-        kg.graph.add_edge(node_c, node_b, GraphEdge { relation: "part_of".into(), weight: 1.0 });
+        kg.graph.add_edge(
+            node_a,
+            node_b,
+            GraphEdge {
+                relation: "references".into(),
+                weight: 1.0,
+            },
+        );
+        kg.graph.add_edge(
+            node_b,
+            node_c,
+            GraphEdge {
+                relation: "contains".into(),
+                weight: 1.0,
+            },
+        );
+        kg.graph.add_edge(
+            node_c,
+            node_b,
+            GraphEdge {
+                relation: "part_of".into(),
+                weight: 1.0,
+            },
+        );
 
         let scores = kg.personalized_pagerank(&["Acme Corporation".into()], 0.85, 100, 1e-6);
 
         let score_b = scores[&node_b];
         let score_c = scores[&node_c];
-        assert!(score_b > scores[&node_a], "seeded node should propagate to connected node");
+        assert!(
+            score_b > scores[&node_a],
+            "seeded node should propagate to connected node"
+        );
         assert!(score_c > 0.0);
     }
 
@@ -261,7 +290,8 @@ mod tests {
 
     #[test]
     fn extract_entities_finds_quoted_terms() {
-        let text = r#"The "Effective Date" shall mean the date signed by the "Authorized Signatory"."#;
+        let text =
+            r#"The "Effective Date" shall mean the date signed by the "Authorized Signatory"."#;
         let entities = extract_entities(text);
         assert!(entities.contains(&"Effective Date".to_string()));
         assert!(entities.contains(&"Authorized Signatory".to_string()));

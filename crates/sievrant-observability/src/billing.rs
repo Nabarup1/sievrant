@@ -148,11 +148,8 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_emitter_buffers_records() {
-        let (emitter, shutdown) = WebhookBillingEmitter::start(
-            "http://localhost:9999/noop".into(),
-            60,
-            100,
-        );
+        let (emitter, shutdown) =
+            WebhookBillingEmitter::start("http://localhost:9999/noop".into(), 60, 100);
         let record = crate::metering::UsageRecord::new(
             "tenant-1", "q-2", "gpt-4o", 50, 200, 80, 2, 200, 0.03,
         );
