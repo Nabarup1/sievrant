@@ -72,7 +72,7 @@ clap = { version = "4", features = ["derive"] }
 config = "0.14"
 
 # Cryptography and hashing
-sha2 = "0.10"
+sha2 = "0.11"
 
 # Date and time
 chrono = { version = "0.4", features = ["serde"] }
