@@ -8,6 +8,7 @@ LangChain Document objects with full metadata preserved.
 
 from __future__ import annotations
 
+import os
 from typing import Any, Optional
 
 from sievrant.client import SievrantClient
@@ -65,7 +66,7 @@ class SievrantRetriever(BaseRetriever):
 
         retriever = SievrantRetriever(
             base_url="http://localhost:8080",
-            api_key="sk-your-key",
+            api_key=os.environ["SIEVRANT_API_KEY"],
             corpus="legal-contracts",
             coverage=0.95,
         )

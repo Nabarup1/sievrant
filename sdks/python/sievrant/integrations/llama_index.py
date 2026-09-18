@@ -7,6 +7,7 @@ implementing BaseQueryEngine and BaseRetriever respectively.
 
 from __future__ import annotations
 
+import os
 from typing import Any, Optional, List
 
 from sievrant.client import SievrantClient
@@ -57,7 +58,7 @@ class SievrantRetriever(BaseRetriever):
 
         retriever = SievrantRetriever(
             base_url="http://localhost:8080",
-            api_key="sk-your-key",
+            api_key=os.environ["SIEVRANT_API_KEY"],
             corpus="legal-contracts",
         )
         nodes = retriever.retrieve("What are the payment terms?")
@@ -117,7 +118,7 @@ class SievrantQueryEngine(BaseQueryEngine):
 
         engine = SievrantQueryEngine(
             base_url="http://localhost:8080",
-            api_key="sk-your-key",
+            api_key=os.environ["SIEVRANT_API_KEY"],
             corpus="legal-contracts",
         )
         response = engine.query("What is the rent?")

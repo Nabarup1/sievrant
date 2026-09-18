@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from beir import util
 from beir.datasets.data_loader import GenericDataLoader
@@ -9,8 +10,10 @@ async def main():
     url = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{}.zip".format(dataset)
     data_path = util.download_and_unzip(url, "datasets")
     corpus, queries, qrels = GenericDataLoader(data_folder=data_path).load(split="test")
-    
-    client = SievrantClient(base_url="http://localhost:8080", api_key="test-key")
+
+    api_key = os.environ.get("SIEVRANT_API_KEY", "sk-test")
+    base_url = os.environ.get("SIEVRANT_BASE_URL", "http://localhost:8080")
+    client = SievrantClient(base_url=base_url, api_key=api_key)
     
     # Use a small subset to prevent hours of CPU execution
     doc_subset = list(corpus.items())[:50]

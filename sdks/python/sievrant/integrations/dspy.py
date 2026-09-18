@@ -7,6 +7,7 @@ that queries the Sievrant server and returns passages for DSPy programs.
 
 from __future__ import annotations
 
+import os
 from typing import Optional, List, Union
 
 from sievrant.client import SievrantClient
@@ -34,7 +35,7 @@ class SievrantRM(dspy.Retrieve):
         dspy.settings.configure(
             rm=SievrantRM(
                 base_url="http://localhost:8080",
-                api_key="sk-your-key",
+                api_key=os.environ["SIEVRANT_API_KEY"],
                 corpus="legal-contracts",
             )
         )
