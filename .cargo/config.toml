@@ -1,0 +1,12 @@
+[alias]
+# Lint all targets and treat every warning as an error
+lint = "clippy --all-targets --all-features -- -D warnings"
+
+# Format check without writing changes (mirrors CI)
+fmt-check = "fmt --all -- --check"
+
+# Run all workspace tests with a readable output format
+test-all = "test --workspace --lib --bins"
+
+# Generate HTML coverage report locally using cargo-llvm-cov
+cov = "llvm-cov --workspace --lib --open"

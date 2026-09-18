@@ -125,7 +125,7 @@ impl Corpus {
             )),
             acl_resolver: {
                 let acl = InMemoryAclResolver::new();
-                acl.register_user("tenant-test", vec!["admin".to_string()]);
+                acl.register_user("tenant-test", vec!["admin".to_string(), "public".to_string()]);
                 Arc::new(acl)
             },
             indexes,
