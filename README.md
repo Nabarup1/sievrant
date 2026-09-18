@@ -53,6 +53,32 @@ The LLM's role shrinks to two places: understanding the query and writing the fi
 
 ---
 
+## Quick Start from a Fresh Clone
+
+The following sequence is the complete path from zero to a running server with
+no manual steps beyond filling in your API key:
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/Nabarup1/sievrant
+cd sievrant
+
+# 2. Copy the example env file and add your OpenAI key (or any compatible LLM key)
+cp .env.example .env
+# Edit .env: set OPENAI_API_KEY=sk-...
+
+# 3. Start Qdrant and the Sievrant API server in the background
+docker compose up -d
+
+# 4. Verify the server is healthy
+curl http://localhost:8080/v1/health
+# Expected response: {"status":"ok","version":"0.1.0"}
+```
+
+That is it. The API is now reachable at `http://localhost:8080`.
+
+---
+
 ## Quickstart
 
 ### Docker (30 seconds)
@@ -295,6 +321,34 @@ npm install sievrant
 [dependencies]
 sievrant = "0.1"
 ```
+
+---
+
+## Reproducing Benchmarks
+
+All benchmark runs are seeded and produce a `config.json` alongside the results
+so every run is fully reproducible.
+
+```bash
+# From a fresh clone, with the server running (see Quick Start above)
+cd benchmarks
+
+# Run BEIR SciFact with seed 42 (default)
+bash run_beir.sh --dataset scifact --seed 42
+
+# Results are written to benchmarks/results/scifact_YYYYMMDD.json
+# along with a config.json recording the seed, model, and timestamp
+```
+
+For a manual run using the Python benchmark script directly:
+
+```bash
+source ../.venv/bin/activate
+python beir_benchmark.py --dataset scifact --seed 42
+```
+
+See [docs/comparison/benchmarks.md](docs/comparison/benchmarks.md) for the
+full methodology, hardware details, and comparison methodology.
 
 ---
 
