@@ -4,7 +4,8 @@ import json
 import logging
 import os
 import pathlib
-from datetime import datetime
+import random
+from datetime import datetime, timezone
 
 from beir import util, LoggingHandler
 from beir.datasets.data_loader import GenericDataLoader
@@ -103,11 +104,20 @@ def print_results_table(dataset, model, b_ndcg, b_rec, s_ndcg, s_rec):
     print("\nResults saved to disk.")
 
 async def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="scifact")
-    parser.add_argument("--model", type=str, default="BAAI/bge-small-en-v1.5")
-    parser.add_argument("--skip-ingest", action="store_true")
+    parser = argparse.ArgumentParser(description="BEIR benchmark for Sievrant")
+    parser.add_argument("--dataset", type=str, default="scifact", help="BEIR dataset name")
+    parser.add_argument("--model", type=str, default="BAAI/bge-small-en-v1.5", help="Sentence-transformers model")
+    parser.add_argument("--skip-ingest", action="store_true", help="Skip ingestion, run queries only")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
+    parser.add_argument("--results-dir", type=str, default=None, help="Directory to write results JSON")
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    try:
+        import numpy as np
+        np.random.seed(args.seed)
+    except ImportError:
+        pass
 
     corpus, queries, qrels = download_dataset(args.dataset)
     
@@ -116,17 +126,40 @@ async def main():
     s_ndcg, s_rec = await run_sievrant(corpus, queries, qrels, f"benchmark_{args.dataset}", args.skip_ingest)
     
     print_results_table(args.dataset, args.model, b_ndcg, b_rec, s_ndcg, s_rec)
-    
-    out_dir = pathlib.Path(__file__).parent.absolute() / "results"
-    out_dir.mkdir(exist_ok=True)
-    out_file = out_dir / f"{args.dataset}_{datetime.now().strftime('%Y%m%d')}.json"
+
+    if args.results_dir:
+        out_dir = pathlib.Path(args.results_dir)
+    else:
+        out_dir = pathlib.Path(__file__).parent.absolute() / "results"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now(tz=timezone.utc).isoformat()
+    date_str = datetime.now(tz=timezone.utc).strftime("%Y%m%d")
+    out_file = out_dir / f"{args.dataset}_{date_str}.json"
+    config_file = out_dir / f"{args.dataset}_{date_str}_config.json"
+
+    result_payload = {
+        "dataset": args.dataset,
+        "model": args.model,
+        "seed": args.seed,
+        "timestamp": timestamp,
+        "baseline": {"NDCG@10": b_ndcg, "Recall@100": b_rec},
+        "sievrant": {"NDCG@10": s_ndcg, "Recall@100": s_rec},
+    }
+    config_payload = {
+        "dataset": args.dataset,
+        "model": args.model,
+        "seed": args.seed,
+        "timestamp": timestamp,
+        "sievrant_base_url": SIEVRANT_BASE_URL,
+        "skip_ingest": args.skip_ingest,
+    }
+
     with open(out_file, "w") as f:
-        json.dump({
-            "dataset": args.dataset,
-            "model": args.model,
-            "baseline": {"NDCG@10": b_ndcg, "Recall@100": b_rec},
-            "sievrant": {"NDCG@10": s_ndcg, "Recall@100": s_rec}
-        }, f, indent=2)
+        json.dump(result_payload, f, indent=2)
+    with open(config_file, "w") as f:
+        json.dump(config_payload, f, indent=2)
+    logger.info(f"Results written to {out_file}")
 
 if __name__ == "__main__":
     asyncio.run(main())
