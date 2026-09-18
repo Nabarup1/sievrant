@@ -1,4 +1,6 @@
 import pytest
+pytest.importorskip("sievrant_native")
+
 import asyncio
 from sievrant_native import SievrantCorpus
 import tempfile

@@ -4,20 +4,20 @@ use std::{
 };
 
 use axum::{
-    extract::{State, Extension},
+    extract::{Extension, State},
     http::StatusCode,
     response::{IntoResponse, Json},
     routing::{get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
-use utoipa::{OpenApi, ToSchema};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::{info, error};
+use tracing::{error, info};
+use utoipa::{OpenApi, ToSchema};
 
-use sievrant_core::types::EvidencePacket;
-use sievrant::Corpus;
 use crate::api::middleware::{auth_middleware, TenantContext};
+use sievrant::Corpus;
+use sievrant_core::types::EvidencePacket;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -27,7 +27,10 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(api_keys: HashMap<String, String>, config: sievrant_core::config::SievrantConfig) -> Self {
+    pub fn new(
+        api_keys: HashMap<String, String>,
+        config: sievrant_core::config::SievrantConfig,
+    ) -> Self {
         Self {
             api_keys: Arc::new(RwLock::new(api_keys)),
             corpora: Arc::new(RwLock::new(HashMap::new())),
@@ -62,8 +65,12 @@ pub struct QueryPayload {
     pub skip_cache: bool,
 }
 
-fn default_coverage() -> f64 { 0.95 }
-fn default_budget() -> usize { 4000 }
+fn default_coverage() -> f64 {
+    0.95
+}
+fn default_budget() -> usize {
+    4000
+}
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct QueryResponse {
@@ -147,8 +154,8 @@ pub struct TreeSummaryResponse {
     ),
     components(
         schemas(
-            QueryPayload, QueryResponse, 
-            IngestPayload, IngestDocument, IngestResponse, 
+            QueryPayload, QueryResponse,
+            IngestPayload, IngestDocument, IngestResponse,
             GraphIngestPayload, GraphIngestResponse,
             TreeSummaryPayload, TreeSummaryResponse
         )
@@ -216,7 +223,11 @@ pub async fn query_handler(
     config.skip_cache = payload.skip_cache;
     config.user_id = Some(tenant.tenant_id.clone());
 
-    match corpus.orchestrator.retrieve(&payload.query, &payload.corpus, config).await {
+    match corpus
+        .orchestrator
+        .retrieve(&payload.query, &payload.corpus, config)
+        .await
+    {
         Ok(packet) => (StatusCode::OK, Json(QueryResponse::from(&packet))).into_response(),
         Err(e) => {
             error!("Retrieval error: {:?}", e);
@@ -226,7 +237,8 @@ pub async fn query_handler(
                     "error": "internal_error",
                     "message": e.to_string()
                 })),
-            ).into_response()
+            )
+                .into_response()
         }
     }
 }
@@ -266,31 +278,46 @@ pub async fn ingest_handler(
         let corpus_result = sievrant::Corpus::open(&payload.corpus, (*state.config).clone()).await;
         let new_corpus = match corpus_result {
             Ok(c) => Arc::new(c),
-            Err(_) => Arc::new(sievrant::Corpus::create(&payload.corpus, (*state.config).clone()).await.unwrap_or_else(|e| {
-                tracing::error!("Failed to create corpus: {}", e);
-                panic!("Failed to create corpus: {}", e)
-            })),
+            Err(_) => Arc::new(
+                sievrant::Corpus::create(&payload.corpus, (*state.config).clone())
+                    .await
+                    .unwrap_or_else(|e| {
+                        tracing::error!("Failed to create corpus: {}", e);
+                        panic!("Failed to create corpus: {}", e)
+                    }),
+            ),
         };
         let mut lock = state.corpora.write().unwrap();
         lock.entry(payload.corpus.clone()).or_insert(new_corpus);
     }
 
-    let corpus_arc = state.corpora.read().unwrap().get(&payload.corpus).unwrap().clone();
-    
+    let corpus_arc = state
+        .corpora
+        .read()
+        .unwrap()
+        .get(&payload.corpus)
+        .unwrap()
+        .clone();
+
     let mut ingested_count = 0;
     let mut failed_count = 0;
-    
+
     for doc in payload.documents {
         let sievrant_doc = sievrant_core::types::Document {
             id: doc.id.clone(),
             content: doc.content.clone(),
             metadata: sievrant_core::types::DocumentMetadata {
-                title: doc.metadata.as_ref().and_then(|m| m.get("title")).and_then(|v| v.as_str()).map(|s| s.to_string()),
+                title: doc
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("title"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
                 ..Default::default()
             },
             acl_groups: vec!["public".to_string()],
         };
-        
+
         match corpus_arc.add_document(sievrant_doc).await {
             Ok(_) => ingested_count += 1,
             Err(e) => {
@@ -307,7 +334,8 @@ pub async fn ingest_handler(
             ingested: ingested_count,
             failed: failed_count,
         }),
-    ).into_response()
+    )
+        .into_response()
 }
 
 #[utoipa::path(
@@ -346,17 +374,22 @@ pub async fn graph_ingest_handler(
                         "error": "corpus_not_found",
                         "message": format!("Corpus '{}' is not registered", payload.corpus)
                     })),
-                ).into_response();
+                )
+                    .into_response();
             }
         }
     };
 
     let graph_index = &corpus.orchestrator.indexes.graph;
     for req in &payload.requests {
-        let relations: Vec<(String, String, String)> = req.relations.iter().map(|r| {
-            (r.source.clone(), r.target.clone(), r.relation.clone())
-        }).collect();
-        let _ = graph_index.ingest_graph_entities(&req.chunk_id, &req.entities, &relations).await;
+        let relations: Vec<(String, String, String)> = req
+            .relations
+            .iter()
+            .map(|r| (r.source.clone(), r.target.clone(), r.relation.clone()))
+            .collect();
+        let _ = graph_index
+            .ingest_graph_entities(&req.chunk_id, &req.entities, &relations)
+            .await;
     }
 
     (
@@ -365,7 +398,8 @@ pub async fn graph_ingest_handler(
             corpus: payload.corpus,
             ingested: payload.requests.len(),
         }),
-    ).into_response()
+    )
+        .into_response()
 }
 
 #[utoipa::path(
@@ -404,14 +438,17 @@ pub async fn tree_summary_handler(
                         "error": "corpus_not_found",
                         "message": format!("Corpus '{}' is not registered", payload.corpus)
                     })),
-                ).into_response();
+                )
+                    .into_response();
             }
         }
     };
 
     let tree_index = &corpus.orchestrator.indexes.tree;
     for req in &payload.requests {
-        let _ = tree_index.ingest_tree_summary(&req.node_id, req.summary.clone()).await;
+        let _ = tree_index
+            .ingest_tree_summary(&req.node_id, req.summary.clone())
+            .await;
     }
 
     (
@@ -420,7 +457,8 @@ pub async fn tree_summary_handler(
             corpus: payload.corpus,
             ingested: payload.requests.len(),
         }),
-    ).into_response()
+    )
+        .into_response()
 }
 
 #[utoipa::path(
@@ -445,10 +483,12 @@ pub fn build_router(state: AppState) -> Router {
         .route("/v1/ingest", post(ingest_handler))
         .route("/v1/graph/ingest", post(graph_ingest_handler))
         .route("/v1/tree/summary", post(tree_summary_handler))
-        .layer(axum::middleware::from_fn_with_state(state.clone(), auth_middleware));
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
 
-    let public = Router::new()
-        .route("/v1/health", get(health_handler));
+    let public = Router::new().route("/v1/health", get(health_handler));
 
     Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
@@ -472,13 +512,13 @@ mod tests {
         let hashed = format!("{:x}", hasher.finalize());
         let mut keys = HashMap::new();
         keys.insert(hashed, tenant.to_string());
-        
+
         let state = AppState::new(keys);
-        
+
         // Note: For full integration testing, we would insert an Arc<Corpus> here.
         // But since this is just testing the router and auth plumbing,
         // we'll rely on the 404 handler to verify the auth middleware let it through.
-        
+
         state
     }
 
@@ -486,7 +526,12 @@ mod tests {
     async fn health_returns_200() {
         let app = build_router(make_state("sk-key", "t1"));
         let resp = app
-            .oneshot(Request::builder().uri("/v1/health").body(Body::empty()).unwrap())
+            .oneshot(
+                Request::builder()
+                    .uri("/v1/health")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::OK);
