@@ -1,12 +1,12 @@
 pub mod api;
 
-use std::collections::HashMap;
-use tracing::info;
 use sievrant_observability::{init_observability, ObservabilityConfig};
+use std::collections::HashMap;
 use tonic::transport::Server as TonicServer;
+use tracing::info;
 
+use api::grpc::{proto::sievrant_service_server::SievrantServiceServer, SievrantGrpcService};
 use api::rest::{build_router, AppState};
-use api::grpc::{SievrantGrpcService, proto::sievrant_service_server::SievrantServiceServer};
 
 #[tokio::main]
 async fn main() {
@@ -19,9 +19,12 @@ async fn main() {
     hasher.update(b"sk-test");
     let hash = format!("{:x}", hasher.finalize());
     keys.insert(hash, "tenant-test".to_string());
-    
+
     let config = sievrant_core::config::SievrantConfig::load().unwrap_or_default();
-    println!("DEBUG ENV: {:?}", std::env::var("SIEVRANT_EMBEDDING__MODEL"));
+    println!(
+        "DEBUG ENV: {:?}",
+        std::env::var("SIEVRANT_EMBEDDING__MODEL")
+    );
     println!("DEBUG CONFIG: {:#?}", config);
     let state = AppState::new(keys, config);
 
@@ -29,12 +32,14 @@ async fn main() {
     let grpc_addr = "0.0.0.0:50051".parse().unwrap();
 
     let rest_state = state.clone();
-    
+
     // Spawn REST Server
     let rest_task = tokio::spawn(async move {
         info!("sievrant-server REST listening on {rest_addr}");
         let listener = tokio::net::TcpListener::bind(rest_addr).await.unwrap();
-        axum::serve(listener, build_router(rest_state)).await.unwrap();
+        axum::serve(listener, build_router(rest_state))
+            .await
+            .unwrap();
     });
 
     // Spawn gRPC Server

@@ -123,7 +123,9 @@ pub enum LlmError {
     #[error("Failed to parse response from {provider}: {reason}")]
     ParseError { provider: String, reason: String },
 
-    #[error("Context window exceeded: {tokens_needed} tokens needed, {tokens_available} available")]
+    #[error(
+        "Context window exceeded: {tokens_needed} tokens needed, {tokens_available} available"
+    )]
     ContextWindowExceeded {
         tokens_needed: usize,
         tokens_available: usize,
@@ -153,8 +155,13 @@ pub enum ConfigError {
 
 #[derive(Debug, Error)]
 pub enum CalibrationError {
-    #[error("Insufficient calibration data: need at least {min_required} examples, got {provided}")]
-    InsufficientData { min_required: usize, provided: usize },
+    #[error(
+        "Insufficient calibration data: need at least {min_required} examples, got {provided}"
+    )]
+    InsufficientData {
+        min_required: usize,
+        provided: usize,
+    },
 
     #[error("No calibration set found for corpus {corpus}")]
     NotFound { corpus: String },
@@ -359,8 +366,10 @@ mod tests {
 
     #[test]
     fn error_context_trait_wraps_errors() {
-        let result: std::result::Result<(), std::io::Error> =
-            Err(std::io::Error::new(std::io::ErrorKind::NotFound, "file missing"));
+        let result: std::result::Result<(), std::io::Error> = Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "file missing",
+        ));
         let siev_result = result.context("reading config");
         assert!(matches!(siev_result, Err(SievrantError::Internal(_))));
         assert!(siev_result
@@ -381,7 +390,8 @@ mod tests {
         let ok: DegradedResult<i32> = DegradedResult::Ok(42);
         assert!(!ok.is_fatal());
 
-        let fatal: DegradedResult<i32> = DegradedResult::Fatal(SievrantError::Internal("oops".into()));
+        let fatal: DegradedResult<i32> =
+            DegradedResult::Fatal(SievrantError::Internal("oops".into()));
         assert!(fatal.is_fatal());
     }
 }

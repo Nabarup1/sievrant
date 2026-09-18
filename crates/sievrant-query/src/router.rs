@@ -96,7 +96,12 @@ impl QueryRouter {
         }
 
         let reason = format!("Classified as {route:?} with confidence {confidence:.2}");
-        RouteDecision { route, confidence, features, reason }
+        RouteDecision {
+            route,
+            confidence,
+            features,
+            reason,
+        }
     }
 
     /// Classify according to a caller-provided `RouteStrategy`.
@@ -156,35 +161,52 @@ impl QueryRouter {
 
 fn count_question_words(query: &str) -> usize {
     let q = query.to_lowercase();
-    ["what", "where", "when", "who", "which", "how", "why", "does", "is", "are", "can"]
-        .iter()
-        .filter(|&&w| q.split_whitespace().any(|t| t.trim_matches('?') == w))
-        .count()
+    [
+        "what", "where", "when", "who", "which", "how", "why", "does", "is", "are", "can",
+    ]
+    .iter()
+    .filter(|&&w| q.split_whitespace().any(|t| t.trim_matches('?') == w))
+    .count()
 }
 
 fn count_conjunctions(query: &str) -> usize {
     let q = query.to_lowercase();
-    ["and", "or", "but", "nor", "yet", "so", "although", "while", "whereas"]
-        .iter()
-        .filter(|&&c| {
-            q.split_whitespace()
-                .any(|t| t.trim_matches(|ch: char| !ch.is_alphabetic()) == c)
-        })
-        .count()
+    [
+        "and", "or", "but", "nor", "yet", "so", "although", "while", "whereas",
+    ]
+    .iter()
+    .filter(|&&c| {
+        q.split_whitespace()
+            .any(|t| t.trim_matches(|ch: char| !ch.is_alphabetic()) == c)
+    })
+    .count()
 }
 
 fn has_comparison_indicators(query: &str) -> bool {
     let q = query.to_lowercase();
-    ["compare", "versus", "vs", "difference", "contrast", "better", "worse", "similar", "different"]
-        .iter()
-        .any(|&kw| q.contains(kw))
+    [
+        "compare",
+        "versus",
+        "vs",
+        "difference",
+        "contrast",
+        "better",
+        "worse",
+        "similar",
+        "different",
+    ]
+    .iter()
+    .any(|&kw| q.contains(kw))
 }
 
 fn has_temporal_indicators(query: &str) -> bool {
     let q = query.to_lowercase();
-    ["before", "after", "since", "until", "during", "when", "timeline", "history", "changed", "latest"]
-        .iter()
-        .any(|&kw| q.contains(kw))
+    [
+        "before", "after", "since", "until", "during", "when", "timeline", "history", "changed",
+        "latest",
+    ]
+    .iter()
+    .any(|&kw| q.contains(kw))
 }
 
 fn count_negations(query: &str) -> usize {
@@ -218,7 +240,11 @@ mod tests {
     #[test]
     fn simple_lookup_routes_to_fast() {
         let decision = router().classify("What is the lease term?");
-        assert_eq!(decision.route, Route::Fast, "short factual query should be FAST");
+        assert_eq!(
+            decision.route,
+            Route::Fast,
+            "short factual query should be FAST"
+        );
     }
 
     #[test]
@@ -226,7 +252,11 @@ mod tests {
         let decision = router().classify(
             "Compare the indemnification clauses across all three contracts and identify conflicts between them, and also compare the pricing terms and tell me what is different.",
         );
-        assert_eq!(decision.route, Route::Slow, "comparison multi-hop query should be SLOW");
+        assert_eq!(
+            decision.route,
+            Route::Slow,
+            "comparison multi-hop query should be SLOW"
+        );
     }
 
     #[test]
@@ -260,7 +290,9 @@ mod tests {
             default_route: Route::Fast,
             ..Default::default()
         });
-        let decision = router.classify("Very complex multi-hop comparison query with contrasting clauses across documents");
+        let decision = router.classify(
+            "Very complex multi-hop comparison query with contrasting clauses across documents",
+        );
         assert_eq!(decision.route, Route::Fast);
     }
 

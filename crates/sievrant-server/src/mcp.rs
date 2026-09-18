@@ -1,11 +1,11 @@
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use sievrant_core::error::Result;
 use sievrant::Corpus;
-use tracing::{info, debug};
+use sievrant_core::error::Result;
+use std::sync::Arc;
+use tracing::{debug, info};
 
 /// A mock implementation of the MCP protocol (Model Context Protocol).
-/// In 2026, standard crates exist for this (like `mcp-rs`), but for this 
+/// In 2026, standard crates exist for this (like `mcp-rs`), but for this
 /// scaffolding we define the tool and resource schemas directly to demonstrate
 /// the contract.
 
@@ -129,14 +129,18 @@ impl McpServer {
                 uri: "calibration://{corpus}".into(),
                 name: "Calibration Status".into(),
                 mime_type: "application/json".into(),
-            }
+            },
         ]
     }
 
     /// Simulate handling a tool call request from an MCP client
-    pub async fn handle_tool_call(&self, name: &str, _args: serde_json::Value) -> Result<serde_json::Value> {
+    pub async fn handle_tool_call(
+        &self,
+        name: &str,
+        _args: serde_json::Value,
+    ) -> Result<serde_json::Value> {
         debug!("MCP tool call received: {}", name);
-        
+
         // In a complete implementation, this would route to the appropriate Sievrant SDK methods
         match name {
             "retrieve" => {
@@ -150,7 +154,9 @@ impl McpServer {
             "corpus_stats" => Ok(serde_json::json!({ "document_count": 100 })),
             "list_corpora" => Ok(serde_json::json!(["legal", "engineering"])),
             "calibration_status" => Ok(serde_json::json!({ "drift": 0.01 })),
-            _ => Err(sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(format!("Unknown tool: {}", name)))),
+            _ => Err(sievrant_core::error::SievrantError::Storage(
+                sievrant_core::error::StorageError::Io(format!("Unknown tool: {}", name)),
+            )),
         }
     }
 }
@@ -184,7 +190,7 @@ mod tests {
     fn tool_retrieve_has_correct_schema() {
         let tools = McpServer::register_tools();
         let retrieve = tools.iter().find(|t| t.name == "retrieve").unwrap();
-        
+
         let schema = &retrieve.input_schema;
         let props = schema.get("properties").unwrap();
         assert!(props.get("query").is_some());

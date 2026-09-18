@@ -86,8 +86,14 @@ mod tests {
             200,  // avg chunk tokens
             0.03, // cost per 1k tokens
         );
-        assert!(rec.naive_rag_token_estimate >= rec.input_tokens_retrieval + rec.input_tokens_generation);
-        assert!(rec.tokens_saved > 0, "should have saved tokens vs naive top-20");
+        assert!(
+            rec.naive_rag_token_estimate
+                >= rec.input_tokens_retrieval + rec.input_tokens_generation
+        );
+        assert!(
+            rec.tokens_saved > 0,
+            "should have saved tokens vs naive top-20"
+        );
     }
 
     proptest! {

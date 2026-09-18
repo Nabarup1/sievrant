@@ -24,7 +24,11 @@ impl ResilientHttpClient {
             .timeout(Duration::from_secs(60))
             .build()
             .expect("failed to build reqwest client");
-        Self { inner, max_retries, base_backoff_ms }
+        Self {
+            inner,
+            max_retries,
+            base_backoff_ms,
+        }
     }
 
     /// POST a JSON body to `url`, retrying on 429/5xx with exponential backoff.
@@ -45,10 +49,12 @@ impl ResilientHttpClient {
             let status = resp.status();
 
             if status.is_success() {
-                let json = resp
-                    .json::<Value>()
-                    .await
-                    .map_err(|e| SievrantError::Llm(LlmError::ParseError { provider: "http".into(), reason: e.to_string() }))?;
+                let json = resp.json::<Value>().await.map_err(|e| {
+                    SievrantError::Llm(LlmError::ParseError {
+                        provider: "http".into(),
+                        reason: e.to_string(),
+                    })
+                })?;
                 return Ok(json);
             }
 
@@ -64,8 +70,8 @@ impl ResilientHttpClient {
             }
 
             // Exponential backoff: base * 2^attempt, capped at 30 s
-            let delay_ms = (self.base_backoff_ms * (1 << attempt)).min(30_000)
-                + (rand_jitter() % 200);
+            let delay_ms =
+                (self.base_backoff_ms * (1 << attempt)).min(30_000) + (rand_jitter() % 200);
             warn!(
                 attempt,
                 delay_ms,
@@ -92,10 +98,12 @@ impl ResilientHttpClient {
 
             let status = resp.status();
             if status.is_success() {
-                return resp
-                    .json::<Value>()
-                    .await
-                    .map_err(|e| SievrantError::Llm(LlmError::ParseError { provider: "http".into(), reason: e.to_string() }));
+                return resp.json::<Value>().await.map_err(|e| {
+                    SievrantError::Llm(LlmError::ParseError {
+                        provider: "http".into(),
+                        reason: e.to_string(),
+                    })
+                });
             }
 
             let retryable = status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error();
@@ -108,8 +116,8 @@ impl ResilientHttpClient {
                 }));
             }
 
-            let delay_ms = (self.base_backoff_ms * (1 << attempt)).min(30_000)
-                + (rand_jitter() % 200);
+            let delay_ms =
+                (self.base_backoff_ms * (1 << attempt)).min(30_000) + (rand_jitter() % 200);
             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
             attempt += 1;
         }

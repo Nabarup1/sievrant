@@ -25,7 +25,7 @@ unsafe fn avx2_max_sim(query_embeddings: &[Vec<f32>], doc_embeddings: &[Vec<f32>
 
     for q_vec in query_embeddings {
         let mut max_score = f32::NEG_INFINITY;
-        
+
         for d_vec in doc_embeddings {
             let score = avx2_dot(q_vec, d_vec);
             if score > max_score {
@@ -43,11 +43,11 @@ unsafe fn avx2_max_sim(query_embeddings: &[Vec<f32>], doc_embeddings: &[Vec<f32>
 unsafe fn avx2_dot(a: &[f32], b: &[f32]) -> f32 {
     let len = a.len().min(b.len());
     let mut i = 0;
-    
+
     // Accumulators for 8-wide FMA
     let mut sum0 = _mm256_setzero_ps();
     let mut sum1 = _mm256_setzero_ps();
-    
+
     // Unroll by 2 (16 elements per iteration)
     while i + 15 < len {
         let va0 = _mm256_loadu_ps(a.as_ptr().add(i));
@@ -117,12 +117,17 @@ mod tests {
     fn test_scalar_vs_simd() {
         let q = vec![vec![1.0; 128]];
         let d = vec![vec![0.5; 128], vec![2.0; 128]];
-        
+
         let scalar = scalar_max_sim(&q, &d);
         #[cfg(target_arch = "x86_64")]
         if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
             let simd = unsafe { avx2_max_sim(&q, &d) };
-            assert!((scalar - simd).abs() < 1e-4, "SIMD {} != Scalar {}", simd, scalar);
+            assert!(
+                (scalar - simd).abs() < 1e-4,
+                "SIMD {} != Scalar {}",
+                simd,
+                scalar
+            );
         }
     }
 }

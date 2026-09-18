@@ -105,7 +105,9 @@ impl LlmProvider for GeminiNative {
                     Role::Assistant => "model".into(),
                     Role::System => "user".into(),
                 },
-                parts: vec![GeminiPart { text: m.content.clone() }],
+                parts: vec![GeminiPart {
+                    text: m.content.clone(),
+                }],
             })
             .collect();
 
@@ -142,21 +144,20 @@ impl LlmProvider for GeminiNative {
             .into());
         }
 
-        let parsed: GeminiResponse = response.json().await.map_err(|e| {
-            LlmError::ParseError {
-                provider: "gemini".into(),
-                reason: e.to_string(),
-            }
+        let parsed: GeminiResponse = response.json().await.map_err(|e| LlmError::ParseError {
+            provider: "gemini".into(),
+            reason: e.to_string(),
         })?;
 
-        let candidate = parsed
-            .candidates
-            .into_iter()
-            .next()
-            .ok_or_else(|| LlmError::ParseError {
-                provider: "gemini".into(),
-                reason: "empty candidates".into(),
-            })?;
+        let candidate =
+            parsed
+                .candidates
+                .into_iter()
+                .next()
+                .ok_or_else(|| LlmError::ParseError {
+                    provider: "gemini".into(),
+                    reason: "empty candidates".into(),
+                })?;
 
         let content = candidate
             .content
@@ -173,10 +174,13 @@ impl LlmProvider for GeminiNative {
             _ => FinishReason::Unknown,
         };
 
-        let usage = parsed.usage_metadata.map(|u| TokenUsage {
-            input_tokens: u.prompt_token_count.unwrap_or(0),
-            output_tokens: u.candidates_token_count.unwrap_or(0),
-        }).unwrap_or_default();
+        let usage = parsed
+            .usage_metadata
+            .map(|u| TokenUsage {
+                input_tokens: u.prompt_token_count.unwrap_or(0),
+                output_tokens: u.candidates_token_count.unwrap_or(0),
+            })
+            .unwrap_or_default();
 
         Ok(LlmResponse {
             content,

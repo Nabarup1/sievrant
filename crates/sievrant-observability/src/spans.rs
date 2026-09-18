@@ -1,5 +1,5 @@
-use tracing::{span, Level, Span};
 use sievrant_core::types::{Decision, Route};
+use tracing::{span, Level, Span};
 
 /// Defines the OpenTelemetry span tree and semantic attributes for the Sievrant pipeline.
 pub struct RetrievalSpans;

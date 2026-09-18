@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use ort::session::{Session, builder::GraphOptimizationLevel};
+use ort::session::{builder::GraphOptimizationLevel, Session};
 use sievrant_core::error::{RerankError, Result};
 
 use crate::Reranker;
@@ -24,11 +24,13 @@ impl SimpleTokenizer {
         const SEP: i64 = 102;
         const PAD: i64 = 0;
 
-        let query_tokens: Vec<i64> = query.split_whitespace()
+        let query_tokens: Vec<i64> = query
+            .split_whitespace()
             .map(|w| w.bytes().map(|b| b as i64).sum::<i64>() % 30000 + 1000)
             .collect();
 
-        let doc_tokens: Vec<i64> = document.split_whitespace()
+        let doc_tokens: Vec<i64> = document
+            .split_whitespace()
             .map(|w| w.bytes().map(|b| b as i64).sum::<i64>() % 30000 + 1000)
             .collect();
 
@@ -97,11 +99,7 @@ impl OnnxCrossEncoder {
         })
     }
 
-    fn run_batch(
-        &self,
-        query: &str,
-        documents: &[&str],
-    ) -> Result<Vec<f64>> {
+    fn run_batch(&self, query: &str, documents: &[&str]) -> Result<Vec<f64>> {
         let mut all_scores = Vec::with_capacity(documents.len());
 
         for doc_batch in documents.chunks(self.batch_size) {
@@ -121,19 +119,24 @@ impl OnnxCrossEncoder {
 
             let _shape = [batch_len as i64, max_len as i64];
 
-            let input_ids_tensor = ort::value::Tensor::from_array(([batch_len, max_len], input_ids_flat))
-                .map_err(|e| RerankError::Inference(e.to_string()))?;
-            let attn_tensor = ort::value::Tensor::from_array(([batch_len, max_len], attention_mask_flat))
-                .map_err(|e| RerankError::Inference(e.to_string()))?;
-            let type_tensor = ort::value::Tensor::from_array(([batch_len, max_len], token_type_flat))
-                .map_err(|e| RerankError::Inference(e.to_string()))?;
+            let input_ids_tensor =
+                ort::value::Tensor::from_array(([batch_len, max_len], input_ids_flat))
+                    .map_err(|e| RerankError::Inference(e.to_string()))?;
+            let attn_tensor =
+                ort::value::Tensor::from_array(([batch_len, max_len], attention_mask_flat))
+                    .map_err(|e| RerankError::Inference(e.to_string()))?;
+            let type_tensor =
+                ort::value::Tensor::from_array(([batch_len, max_len], token_type_flat))
+                    .map_err(|e| RerankError::Inference(e.to_string()))?;
 
             let mut session_guard = self.session.lock().unwrap();
-            let outputs = session_guard.run(ort::inputs![
-                "input_ids" => input_ids_tensor,
-                "attention_mask" => attn_tensor,
-                "token_type_ids" => type_tensor,
-            ]).map_err(|e| RerankError::Inference(e.to_string()))?;
+            let outputs = session_guard
+                .run(ort::inputs![
+                    "input_ids" => input_ids_tensor,
+                    "attention_mask" => attn_tensor,
+                    "token_type_ids" => type_tensor,
+                ])
+                .map_err(|e| RerankError::Inference(e.to_string()))?;
 
             let logits = outputs[0]
                 .try_extract_tensor::<f32>()
@@ -143,7 +146,11 @@ impl OnnxCrossEncoder {
 
             // Assume shape [batch, 2]; positive logit is index 1.
             // Single-output models (shape [batch, 1]) fall back to index 0.
-            let logit_stride = if logits_slice.len() / batch_len == 2 { 2 } else { 1 };
+            let logit_stride = if logits_slice.len() / batch_len == 2 {
+                2
+            } else {
+                1
+            };
             let pos_offset = if logit_stride == 2 { 1 } else { 0 };
 
             for i in 0..batch_len {

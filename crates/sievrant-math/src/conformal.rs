@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use sievrant_core::{
     error::{CalibrationError, Result},
-    types::{Decision, SelectedEvidence, QueryTaxonomy},
+    types::{Decision, QueryTaxonomy, SelectedEvidence},
 };
 
 /// Non-conformity score for a single (query, chunk) pair.
@@ -15,14 +15,8 @@ use sievrant_core::{
 ///
 /// Weights: rerank 60%, rrf_score (clamped to \[0,1\]) 30%, structural bonus 10%.
 /// These are fixed defaults; a future per-corpus calibration step can tune them.
-pub fn nonconformity_score(
-    rerank_score: f64,
-    rrf_score: f64,
-    structural_bonus: f64,
-) -> f64 {
-    let combined = 0.6 * rerank_score
-        + 0.3 * rrf_score.min(1.0)
-        + 0.1 * structural_bonus;
+pub fn nonconformity_score(rerank_score: f64, rrf_score: f64, structural_bonus: f64) -> f64 {
+    let combined = 0.6 * rerank_score + 0.3 * rrf_score.min(1.0) + 0.1 * structural_bonus;
     1.0 - combined.clamp(0.0, 1.0)
 }
 
@@ -85,18 +79,21 @@ impl OnlineCalibrationState {
         if !is_relevant {
             return;
         }
-        
+
         let count = self.total_relevant.entry(taxonomy.clone()).or_insert(0);
         *count += 1;
-        
-        let tree = self.trees.entry(taxonomy.clone()).or_insert_with(|| vec![0; BINS + 1]);
-        
+
+        let tree = self
+            .trees
+            .entry(taxonomy.clone())
+            .or_insert_with(|| vec![0; BINS + 1]);
+
         let mut idx = (score * BINS as f64).round() as usize;
         idx = idx.clamp(0, BINS).min(BINS - 1) + 1; // 1-based indexing for Fenwick
-        
+
         while idx <= BINS {
             tree[idx] += 1;
-            idx += idx & idx.wrapping_neg(); 
+            idx += idx & idx.wrapping_neg();
         }
     }
 
@@ -137,11 +134,19 @@ impl OnlineCalibrationState {
 ///
 /// Wraps the batch `CalibrationSet` into the `OnlineCalibrationState` to utilize
 /// the $O(\log B)$ Fenwick Tree binary lifting algorithm.
-pub fn compute_threshold(calibration_set: &CalibrationSet, taxonomy: &QueryTaxonomy, coverage_target: f64) -> Result<f64> {
+pub fn compute_threshold(
+    calibration_set: &CalibrationSet,
+    taxonomy: &QueryTaxonomy,
+    coverage_target: f64,
+) -> Result<f64> {
     let mut state = OnlineCalibrationState::new();
     for entry in &calibration_set.entries {
         for score in &entry.scores {
-            state.insert_score(&entry.taxonomy, score.nonconformity_score, score.is_relevant);
+            state.insert_score(
+                &entry.taxonomy,
+                score.nonconformity_score,
+                score.is_relevant,
+            );
         }
     }
     state.compute_threshold(taxonomy, coverage_target)
@@ -284,19 +289,18 @@ mod tests {
         // At 95% coverage the threshold should be at or above the 95th percentile
         // of the relevant scores, which is 0.95.
         assert!(threshold <= 1.0);
-        assert!(threshold >= 0.94, "threshold {threshold} should cover 95% of scores");
+        assert!(
+            threshold >= 0.94,
+            "threshold {threshold} should cover 95% of scores"
+        );
     }
 
     #[test]
     fn coverage_guarantee_holds_on_test_split() {
         // Train: 200 relevant scores uniformly in [0, 1]
         // Test: same distribution -> empirical coverage should be >= target
-        let cal_scores: Vec<(f64, bool)> = (0..200)
-            .map(|i| (i as f64 / 200.0, true))
-            .collect();
-        let test_scores: Vec<(f64, bool)> = (0..200)
-            .map(|i| (i as f64 / 200.0, true))
-            .collect();
+        let cal_scores: Vec<(f64, bool)> = (0..200).map(|i| (i as f64 / 200.0, true)).collect();
+        let test_scores: Vec<(f64, bool)> = (0..200).map(|i| (i as f64 / 200.0, true)).collect();
 
         let cal = make_calibration_set("cal", &cal_scores);
         let test = make_calibration_set("test", &test_scores);
@@ -379,8 +383,14 @@ mod tests {
         let t95 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95).unwrap();
         let t99 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.99).unwrap();
 
-        assert!(t90 <= t95, "threshold must be non-decreasing: t90={t90} t95={t95}");
-        assert!(t95 <= t99, "threshold must be non-decreasing: t95={t95} t99={t99}");
+        assert!(
+            t90 <= t95,
+            "threshold must be non-decreasing: t90={t90} t95={t95}"
+        );
+        assert!(
+            t95 <= t99,
+            "threshold must be non-decreasing: t95={t95} t99={t99}"
+        );
     }
 
     #[test]

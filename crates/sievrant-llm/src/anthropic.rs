@@ -108,12 +108,11 @@ impl LlmProvider for AnthropicNative {
             .into());
         }
 
-        let parsed: AnthropicResponse = response.json().await.map_err(|e| {
-            LlmError::ParseError {
+        let parsed: AnthropicResponse =
+            response.json().await.map_err(|e| LlmError::ParseError {
                 provider: "anthropic".into(),
                 reason: e.to_string(),
-            }
-        })?;
+            })?;
 
         let content = parsed
             .content

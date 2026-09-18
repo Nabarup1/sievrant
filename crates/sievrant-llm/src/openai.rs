@@ -146,12 +146,11 @@ impl LlmProvider for OpenAiCompatible {
                 .into());
             }
 
-            let parsed: OpenAiResponse = response.json().await.map_err(|e| {
-                LlmError::ParseError {
+            let parsed: OpenAiResponse =
+                response.json().await.map_err(|e| LlmError::ParseError {
                     provider: "openai-compatible".into(),
                     reason: e.to_string(),
-                }
-            })?;
+                })?;
 
             let choice = parsed
                 .choices
@@ -169,10 +168,13 @@ impl LlmProvider for OpenAiCompatible {
                 _ => FinishReason::Unknown,
             };
 
-            let usage = parsed.usage.map(|u| TokenUsage {
-                input_tokens: u.prompt_tokens,
-                output_tokens: u.completion_tokens,
-            }).unwrap_or_default();
+            let usage = parsed
+                .usage
+                .map(|u| TokenUsage {
+                    input_tokens: u.prompt_tokens,
+                    output_tokens: u.completion_tokens,
+                })
+                .unwrap_or_default();
 
             return Ok(LlmResponse {
                 content: choice.message.content.unwrap_or_default(),
@@ -228,7 +230,10 @@ mod tests {
         }"#;
         let parsed: OpenAiResponse = serde_json::from_str(json_str).unwrap();
         assert_eq!(parsed.choices[0].finish_reason.as_deref(), Some("stop"));
-        assert_eq!(parsed.choices[0].message.content.as_deref(), Some("Answer text"));
+        assert_eq!(
+            parsed.choices[0].message.content.as_deref(),
+            Some("Answer text")
+        );
         assert_eq!(parsed.usage.unwrap().prompt_tokens, 20);
     }
 }

@@ -68,7 +68,8 @@ impl KnowledgeGraph {
         }
     }
 
-    fn get_or_insert_entity(&mut self, entity: &str) -> NodeIndex {
+    /// Inserts a new entity or returns the existing node index
+    pub(crate) fn get_or_insert_entity(&mut self, entity: &str) -> NodeIndex {
         if let Some(&idx) = self.entity_index.get(entity) {
             return idx;
         }
@@ -101,7 +102,13 @@ impl KnowledgeGraph {
     }
 
     /// Add entities extracted from a chunk to the graph and link them to the chunk node.
-    pub fn add_chunk(&mut self, chunk_id: &str, text: &str, metadata: &ChunkMetadata, max_entities: usize) {
+    pub fn add_chunk(
+        &mut self,
+        chunk_id: &str,
+        text: &str,
+        metadata: &ChunkMetadata,
+        max_entities: usize,
+    ) {
         let chunk_idx = self.get_or_insert_chunk(chunk_id, metadata);
         let entities = extract_entities(text);
 
@@ -243,10 +250,7 @@ impl KnowledgeGraph {
             let mut x_new = vec![0.0f64; n];
 
             for &src in &node_indices {
-                let neighbors: Vec<NodeIndex> = self
-                    .graph
-                    .neighbors(src)
-                    .collect();
+                let neighbors: Vec<NodeIndex> = self.graph.neighbors(src).collect();
 
                 if neighbors.is_empty() {
                     continue;
@@ -264,11 +268,7 @@ impl KnowledgeGraph {
                 *val += (1.0 - alpha) * v[i];
             }
 
-            let delta: f64 = x_new
-                .iter()
-                .zip(x.iter())
-                .map(|(a, b)| (a - b).abs())
-                .sum();
+            let delta: f64 = x_new.iter().zip(x.iter()).map(|(a, b)| (a - b).abs()).sum();
 
             x = x_new;
 

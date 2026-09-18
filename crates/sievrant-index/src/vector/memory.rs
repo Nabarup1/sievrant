@@ -3,11 +3,11 @@ use tokio::sync::RwLock;
 
 use async_trait::async_trait;
 
+use super::{IndexChunk, VectorStore};
 use sievrant_core::{
     error::Result,
     types::{RankedCandidate, RetrieverType},
 };
-use super::{VectorStore, IndexChunk};
 
 #[derive(Clone)]
 struct MemoryPoint {
@@ -51,7 +51,7 @@ impl MemoryStore {
 impl VectorStore for MemoryStore {
     async fn upsert_vectors(&self, chunks: &[IndexChunk]) -> Result<()> {
         let mut write_guard = self.points.write().await;
-        
+
         for chunk in chunks {
             // Naive upsert (delete existing then insert)
             write_guard.retain(|p| p.chunk.chunk_id != chunk.chunk_id);
@@ -61,7 +61,7 @@ impl VectorStore for MemoryStore {
                 });
             }
         }
-        
+
         Ok(())
     }
 
@@ -72,34 +72,39 @@ impl VectorStore for MemoryStore {
         acl_filter: &[String],
     ) -> Result<Vec<RankedCandidate>> {
         let read_guard = self.points.read().await;
-        
-        let mut results: Vec<(f32, &IndexChunk)> = read_guard.iter().filter_map(|point| {
-            if !acl_filter.is_empty() {
-                let has_access = acl_filter.iter().any(|allowed_group| {
-                    point.chunk.metadata.acl_groups.contains(allowed_group)
-                });
-                if !has_access {
-                    return None;
+
+        let mut results: Vec<(f32, &IndexChunk)> = read_guard
+            .iter()
+            .filter_map(|point| {
+                if !acl_filter.is_empty() {
+                    let has_access = acl_filter.iter().any(|allowed_group| {
+                        point.chunk.metadata.acl_groups.contains(allowed_group)
+                    });
+                    if !has_access {
+                        return None;
+                    }
                 }
-            }
-            
-            let embedding = point.chunk.embedding.as_ref()?;
-            let sim = Self::cosine_similarity(query_embedding, embedding);
-            Some((sim, &point.chunk))
-        }).collect();
-        
+
+                let embedding = point.chunk.embedding.as_ref()?;
+                let sim = Self::cosine_similarity(query_embedding, embedding);
+                Some((sim, &point.chunk))
+            })
+            .collect();
+
         results.sort_unstable_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-        
-        let candidates = results.into_iter().take(top_k).map(|(sim, chunk)| {
-            RankedCandidate {
+
+        let candidates = results
+            .into_iter()
+            .take(top_k)
+            .map(|(sim, chunk)| RankedCandidate {
                 chunk_id: chunk.chunk_id.clone(),
                 score: sim as f64,
                 retriever: RetrieverType::VectorIndex,
                 text: chunk.text.clone(),
                 metadata: chunk.metadata.clone(),
-            }
-        }).collect();
-        
+            })
+            .collect();
+
         Ok(candidates)
     }
 
@@ -138,26 +143,35 @@ mod tests {
     #[tokio::test]
     async fn memory_store_enforces_acl() {
         let store = MemoryStore::new(2);
-        
+
         let chunks = vec![
             test_chunk("c1", vec!["engineering"], vec![1.0, 0.0]),
             test_chunk("c2", vec!["hr"], vec![1.0, 0.0]),
         ];
-        
+
         store.upsert_vectors(&chunks).await.unwrap();
 
         // Engineering can only see c1
-        let results = store.search(&[1.0, 0.0], 10, &["engineering".to_string()]).await.unwrap();
+        let results = store
+            .search(&[1.0, 0.0], 10, &["engineering".to_string()])
+            .await
+            .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].chunk_id, "c1");
 
         // HR can only see c2
-        let results = store.search(&[1.0, 0.0], 10, &["hr".to_string()]).await.unwrap();
+        let results = store
+            .search(&[1.0, 0.0], 10, &["hr".to_string()])
+            .await
+            .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].chunk_id, "c2");
 
         // Executive can see neither
-        let results = store.search(&[1.0, 0.0], 10, &["executive".to_string()]).await.unwrap();
+        let results = store
+            .search(&[1.0, 0.0], 10, &["executive".to_string()])
+            .await
+            .unwrap();
         assert_eq!(results.len(), 0);
 
         // No filter means see all (internal system query)

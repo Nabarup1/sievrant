@@ -1,8 +1,8 @@
 use rustc_hash::FxHashMap;
 
-use sievrant_core::types::{FusedCandidate, RankedCandidate};
 #[cfg(test)]
 use sievrant_core::types::ChunkMetadata;
+use sievrant_core::types::{FusedCandidate, RankedCandidate};
 
 /// Reciprocal Rank Fusion (Cormack, Clarke, Buettcher, 2009)
 ///
@@ -27,24 +27,27 @@ pub fn reciprocal_rank_fusion(
 ) -> Vec<FusedCandidate> {
     // Determine a rough capacity to avoid reallocations
     let total_elements = ranked_lists.iter().map(|l| l.len()).sum();
-    let mut map: FxHashMap<String, FusedCandidate> = FxHashMap::with_capacity_and_hasher(total_elements, Default::default());
+    let mut map: FxHashMap<String, FusedCandidate> =
+        FxHashMap::with_capacity_and_hasher(total_elements, Default::default());
 
     for ranked_list in ranked_lists {
         for (rank_index, candidate) in ranked_list.iter().enumerate() {
             let contribution = 1.0 / (k as f64 + rank_index as f64 + 1.0);
-            
-            let entry = map.entry(candidate.chunk_id.clone()).or_insert_with(|| {
-                FusedCandidate {
+
+            let entry = map
+                .entry(candidate.chunk_id.clone())
+                .or_insert_with(|| FusedCandidate {
                     chunk_id: candidate.chunk_id.clone(),
                     fused_score: 0.0,
                     source_scores: Vec::new(),
                     text: candidate.text.clone(),
                     metadata: candidate.metadata.clone(),
-                }
-            });
+                });
 
             entry.fused_score += contribution;
-            entry.source_scores.push((candidate.retriever.clone(), candidate.score));
+            entry
+                .source_scores
+                .push((candidate.retriever.clone(), candidate.score));
         }
     }
 
@@ -104,8 +107,16 @@ mod tests {
 
         let fused = reciprocal_rank_fusion(&[list_a, list_b], 60);
 
-        let score_d1 = fused.iter().find(|c| c.chunk_id == "d1").unwrap().fused_score;
-        let score_d2 = fused.iter().find(|c| c.chunk_id == "d2").unwrap().fused_score;
+        let score_d1 = fused
+            .iter()
+            .find(|c| c.chunk_id == "d1")
+            .unwrap()
+            .fused_score;
+        let score_d2 = fused
+            .iter()
+            .find(|c| c.chunk_id == "d2")
+            .unwrap()
+            .fused_score;
 
         let expected = 1.0 / 61.0 + 1.0 / 62.0;
         assert!((score_d1 - expected).abs() < 1e-10, "d1 score mismatch");

@@ -38,7 +38,7 @@ pub fn init_observability(config: &ObservabilityConfig) -> Result<()> {
     // In a full production implementation, we would also configure:
     // 1. opentelemetry_otlp::new_pipeline() for tracing and metrics export
     // 2. Add an OpenTelemetry tracing layer to the subscriber
-    
+
     tracing_subscriber::registry()
         .with(env_filter)
         .with(fmt_layer)

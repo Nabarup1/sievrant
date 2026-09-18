@@ -10,10 +10,20 @@ use sievrant_core::{
 
 #[derive(Debug, Clone)]
 pub enum IndexQuery {
-    Vector { embedding: Vec<f32> },
-    Lexical { text: String },
-    Structural { text: String, path_hints: Vec<String> },
-    Graph { entities: Vec<String>, query_embedding: Vec<f32> },
+    Vector {
+        embedding: Vec<f32>,
+    },
+    Lexical {
+        text: String,
+    },
+    Structural {
+        text: String,
+        path_hints: Vec<String>,
+    },
+    Graph {
+        entities: Vec<String>,
+        query_embedding: Vec<f32>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -36,7 +46,7 @@ pub trait RetrievalIndex: Send + Sync {
     async fn insert(&self, chunks: &[IndexChunk]) -> Result<()>;
     async fn delete(&self, chunk_ids: &[String]) -> Result<()>;
     fn index_type(&self) -> RetrieverType;
-    
+
     async fn ingest_graph_entities(
         &self,
         _chunk_id: &str,
@@ -46,11 +56,7 @@ pub trait RetrievalIndex: Send + Sync {
         Ok(())
     }
 
-    async fn ingest_tree_summary(
-        &self,
-        _node_id: &str,
-        _summary: String,
-    ) -> Result<()> {
+    async fn ingest_tree_summary(&self, _node_id: &str, _summary: String) -> Result<()> {
         Ok(())
     }
 }
@@ -65,7 +71,11 @@ pub trait EmbeddingProvider: Send + Sync {
 #[derive(Debug, Clone)]
 pub enum VectorBackendConfig {
     Memory,
-    Qdrant { url: String, api_key: Option<String>, collection_name: String },
+    Qdrant {
+        url: String,
+        api_key: Option<String>,
+        collection_name: String,
+    },
     // LanceDb { uri: String },
 }
 
@@ -103,14 +113,14 @@ impl Default for VectorIndexConfig {
 #[async_trait]
 pub trait VectorStore: Send + Sync {
     async fn upsert_vectors(&self, chunks: &[IndexChunk]) -> Result<()>;
-    
+
     async fn search(
         &self,
         query_embedding: &[f32],
         top_k: usize,
         acl_filter: &[String],
     ) -> Result<Vec<RankedCandidate>>;
-    
+
     async fn delete_documents(&self, chunk_ids: &[String]) -> Result<()>;
 }
 
@@ -124,13 +134,18 @@ impl VectorIndex {
             VectorBackendConfig::Memory => {
                 Box::new(memory::MemoryStore::new(config.embedding_dimensions))
             }
-            VectorBackendConfig::Qdrant { url, api_key, collection_name } => {
+            VectorBackendConfig::Qdrant {
+                url,
+                api_key,
+                collection_name,
+            } => {
                 let qdrant = qdrant::QdrantStore::new(
                     url,
                     api_key,
                     collection_name,
                     config.embedding_dimensions,
-                ).await?;
+                )
+                .await?;
                 Box::new(qdrant)
             }
         };
@@ -149,7 +164,9 @@ impl RetrievalIndex for VectorIndex {
     ) -> Result<Vec<RankedCandidate>> {
         let embedding = match query {
             IndexQuery::Vector { embedding } => embedding,
-            IndexQuery::Graph { query_embedding, .. } => query_embedding,
+            IndexQuery::Graph {
+                query_embedding, ..
+            } => query_embedding,
             _ => return Ok(vec![]),
         };
 

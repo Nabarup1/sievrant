@@ -72,10 +72,19 @@ pub struct LlmConfig {
 /// Instantiate an LLM provider from configuration.
 pub fn create_provider(config: &LlmConfig) -> Result<Box<dyn LlmProvider>> {
     match config.provider.as_str() {
-        "openai" => Ok(Box::new(OpenAiCompatible::openai(&config.api_key, &config.model))),
-        "anthropic" => Ok(Box::new(AnthropicNative::new(&config.api_key, &config.model))),
+        "openai" => Ok(Box::new(OpenAiCompatible::openai(
+            &config.api_key,
+            &config.model,
+        ))),
+        "anthropic" => Ok(Box::new(AnthropicNative::new(
+            &config.api_key,
+            &config.model,
+        ))),
         "gemini" => Ok(Box::new(GeminiNative::new(&config.api_key, &config.model))),
-        "deepseek" => Ok(Box::new(OpenAiCompatible::deepseek(&config.api_key, &config.model))),
+        "deepseek" => Ok(Box::new(OpenAiCompatible::deepseek(
+            &config.api_key,
+            &config.model,
+        ))),
         "custom" => {
             let base_url = config.base_url.as_deref().ok_or_else(|| {
                 SievrantError::Config(ConfigError::MissingField {

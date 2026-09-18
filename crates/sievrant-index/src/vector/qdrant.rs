@@ -3,18 +3,18 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use qdrant_client::{
     qdrant::{
-        vectors_config::Config, with_payload_selector::SelectorOptions, Condition, CreateCollection,
-        Distance, FieldCondition, Filter, Match, PointId, PointStruct, SearchPoints,
-        VectorParams, VectorsConfig, WithPayloadSelector,
+        vectors_config::Config, with_payload_selector::SelectorOptions, Condition,
+        CreateCollection, Distance, FieldCondition, Filter, Match, PointId, PointStruct,
+        SearchPoints, VectorParams, VectorsConfig, WithPayloadSelector,
     },
     Qdrant,
 };
 
+use super::{IndexChunk, VectorStore};
 use sievrant_core::{
     error::{IndexError, Result},
     types::{ChunkMetadata, RankedCandidate, RetrieverType},
 };
-use super::{VectorStore, IndexChunk};
 
 pub struct QdrantStore {
     client: Qdrant,
@@ -67,18 +67,18 @@ impl QdrantStore {
 
         let conditions: Vec<Condition> = allowed_groups
             .iter()
-            .map(|group| {
-                Condition {
-                    condition_one_of: Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(FieldCondition {
+            .map(|group| Condition {
+                condition_one_of: Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(
+                    FieldCondition {
                         key: "acl_groups".into(),
                         r#match: Some(Match {
-                            match_value: Some(
-                                qdrant_client::qdrant::r#match::MatchValue::Keyword(group.clone()),
-                            ),
+                            match_value: Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(
+                                group.clone(),
+                            )),
                         }),
                         ..Default::default()
-                    })),
-                }
+                    },
+                )),
             })
             .collect();
 
@@ -115,7 +115,11 @@ impl VectorStore for QdrantStore {
                 insert_str(&mut payload, "text", &chunk.text);
                 insert_str(&mut payload, "doc_id", &chunk.metadata.doc_id);
                 insert_str(&mut payload, "source_doc", &chunk.metadata.source_doc);
-                insert_str(&mut payload, "doc_version_hash", &chunk.metadata.doc_version_hash);
+                insert_str(
+                    &mut payload,
+                    "doc_version_hash",
+                    &chunk.metadata.doc_version_hash,
+                );
 
                 let acl_list: qdrant_client::qdrant::Value = qdrant_client::qdrant::Value {
                     kind: Some(qdrant_client::qdrant::value::Kind::ListValue(
@@ -168,10 +172,8 @@ impl VectorStore for QdrantStore {
             .collect();
 
         if !points.is_empty() {
-            let req = qdrant_client::qdrant::UpsertPointsBuilder::new(
-                &self.collection_name,
-                points,
-            );
+            let req =
+                qdrant_client::qdrant::UpsertPointsBuilder::new(&self.collection_name, points);
             self.client
                 .upsert_points(req)
                 .await
@@ -219,8 +221,16 @@ impl VectorStore for QdrantStore {
                 let payload = &point.payload;
                 let chunk_id = payload.get("chunk_id")?.as_str()?.to_string();
                 let text = payload.get("text")?.as_str()?.to_string();
-                let doc_id = payload.get("doc_id").and_then(|v| v.as_str()).map(|s| s.to_string()).unwrap_or_default();
-                let source_doc = payload.get("source_doc").and_then(|v| v.as_str()).map(|s| s.to_string()).unwrap_or_default();
+                let doc_id = payload
+                    .get("doc_id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
+                let source_doc = payload
+                    .get("source_doc")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_default();
                 let acl_groups: Vec<String> = payload
                     .get("acl_groups")
                     .and_then(|v| v.as_list())
@@ -277,10 +287,11 @@ impl VectorStore for QdrantStore {
             })
             .collect();
 
-        let req = qdrant_client::qdrant::DeletePointsBuilder::new(&self.collection_name)
-            .points(qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Points(
+        let req = qdrant_client::qdrant::DeletePointsBuilder::new(&self.collection_name).points(
+            qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Points(
                 qdrant_client::qdrant::PointsIdsList { ids },
-            ));
+            ),
+        );
 
         self.client
             .delete_points(req)

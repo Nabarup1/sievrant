@@ -1,7 +1,7 @@
-use std::{collections::VecDeque, sync::RwLock};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use sievrant_core::error::Result;
+use std::{collections::VecDeque, sync::RwLock};
 
 /// An observation of whether a relevant chunk was actually retrieved
 /// under the conformal gate during live operation.
@@ -66,7 +66,7 @@ impl CoverageMonitor {
     pub fn record(&self, obs: CoverageObservation) {
         let mut window = self.window.write().unwrap();
         window.push_back(obs);
-        
+
         // Evict observations older than the window
         let cutoff = Utc::now() - Duration::days(self.window_days as i64);
         while let Some(front) = window.front() {
@@ -81,7 +81,7 @@ impl CoverageMonitor {
     /// Compute the empirical coverage rate over the current window for a specific corpus.
     pub fn get_empirical_coverage(&self, corpus: &str) -> Option<f64> {
         let window = self.window.read().unwrap();
-        
+
         let mut count = 0;
         let mut covered = 0;
 
@@ -104,7 +104,7 @@ impl CoverageMonitor {
     /// Compare empirical vs nominal coverage. Fire an alert if drift exceeds tolerance.
     pub fn check_drift(&self, corpus: &str, nominal_coverage: f64) -> Option<DriftAlert> {
         let window = self.window.read().unwrap();
-        
+
         let mut count = 0;
         let mut covered = 0;
 
@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn computes_empirical_coverage_correctly() {
         let monitor = CoverageMonitor::new(30, CalibrationConfig::default());
-        
+
         monitor.record(dummy_obs("test", true));
         monitor.record(dummy_obs("test", true));
         monitor.record(dummy_obs("test", false));
@@ -227,8 +227,12 @@ mod tests {
         let monitor = CoverageMonitor::new(30, config);
 
         // 80% empirical vs 95% nominal -> 15% drift > 5% tolerance -> alert
-        for _ in 0..4 { monitor.record(dummy_obs("test", true)); }
-        for _ in 0..1 { monitor.record(dummy_obs("test", false)); }
+        for _ in 0..4 {
+            monitor.record(dummy_obs("test", true));
+        }
+        for _ in 0..1 {
+            monitor.record(dummy_obs("test", false));
+        }
 
         let alert = monitor.check_drift("test", 0.95);
         assert!(alert.is_some());
@@ -240,7 +244,7 @@ mod tests {
     #[test]
     fn rolling_window_evicts_old_observations() {
         let monitor = CoverageMonitor::new(1, CalibrationConfig::default());
-        
+
         let old_obs = CoverageObservation {
             timestamp: Utc::now() - Duration::days(2),
             corpus: "test".into(),
@@ -248,7 +252,7 @@ mod tests {
             nominal_coverage: 0.95,
             was_covered: true,
         };
-        
+
         monitor.record(old_obs); // Should be immediately evicted
         assert!(monitor.get_empirical_coverage("test").is_none());
 

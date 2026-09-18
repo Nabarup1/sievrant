@@ -10,7 +10,7 @@
 //!
 //! The `sievrant` crate is designed around the `Corpus` object, which represents
 //! an isolated namespace of documents, vector indexes, BM25 indexes, and knowledge graphs.
-//! 
+//!
 //! Queries are executed either using the `retrieve` convenience function or the
 //! `RetrieveBuilder` for fine-grained control over routing, token budgets, and conformal coverage.
 
@@ -24,25 +24,25 @@ pub use sievrant_core::types::{
 
 mod noop;
 
+use async_trait::async_trait;
+use sievrant_acl::resolver::InMemoryAclResolver;
+use sievrant_index::{
+    bm25::{Bm25Index, Bm25IndexConfig},
+    graph::{GraphIndex, GraphIndexConfig},
+    tree::{TreeIndex, TreeIndexConfig},
+    vector::{VectorBackendConfig, VectorIndex, VectorIndexConfig},
+};
+use sievrant_llm::embeddings::OpenAiEmbeddingProvider;
 use sievrant_llm::{openai::OpenAiCompatible, LlmProvider};
 use sievrant_orchestrator::{
     corpus::{CorpusManager, CorpusMetadata},
     pipeline::{IndexSet, RetrievalOrchestrator},
 };
-use sievrant_index::{
-    vector::{VectorIndex, VectorIndexConfig, VectorBackendConfig},
-    bm25::{Bm25Index, Bm25IndexConfig},
-    tree::{TreeIndex, TreeIndexConfig},
-    graph::{GraphIndex, GraphIndexConfig},
-};
 use sievrant_query::{
-    processing::{QueryProcessor, QueryProcessingConfig},
+    processing::{QueryProcessingConfig, QueryProcessor},
     router::{QueryRouter, RoutingConfig},
 };
-use sievrant_acl::resolver::InMemoryAclResolver;
 use sievrant_rerank::TermOverlapReranker;
-use sievrant_llm::embeddings::OpenAiEmbeddingProvider;
-use async_trait::async_trait;
 
 use std::path::PathBuf;
 
@@ -57,7 +57,7 @@ impl sievrant_query::EmbeddingProvider for EmbeddingProviderWrapper {
         use sievrant_llm::embeddings::EmbeddingProvider;
         self.inner.embed_batch(texts).await
     }
-    
+
     fn dimensions(&self) -> usize {
         use sievrant_llm::embeddings::EmbeddingProvider;
         self.inner.dimensions()
@@ -76,7 +76,10 @@ pub struct Corpus {
 }
 
 impl Corpus {
-    async fn build_orchestrator(name: &str, config: &SievrantConfig) -> Result<Arc<RetrievalOrchestrator>> {
+    async fn build_orchestrator(
+        name: &str,
+        config: &SievrantConfig,
+    ) -> Result<Arc<RetrievalOrchestrator>> {
         let openai_api_key = if let Some(key) = &config.llm.openai_api_key {
             key.clone()
         } else if let Ok(key) = std::env::var("OPENAI_API_KEY") {
@@ -85,47 +88,70 @@ impl Corpus {
             "dummy".to_string()
         };
 
-        let openai_base_url = std::env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+        let openai_base_url = std::env::var("OPENAI_BASE_URL")
+            .unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
         let openai_model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o".to_string());
 
         let llm: Arc<dyn LlmProvider> = if openai_api_key != "dummy" {
-            Arc::new(OpenAiCompatible::custom(&openai_base_url, &openai_api_key, &openai_model, 128_000))
+            Arc::new(OpenAiCompatible::custom(
+                &openai_base_url,
+                &openai_api_key,
+                &openai_model,
+                128_000,
+            ))
         } else {
             Arc::new(noop::NoopLlm)
         };
-        
+
         let vector_config = VectorIndexConfig {
             backend: VectorBackendConfig::Memory,
             ..Default::default()
         };
-        let vector = Arc::new(VectorIndex::new(vector_config).await.map_err(|e| sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(e.to_string())))?);
-        
+        let vector = Arc::new(VectorIndex::new(vector_config).await.map_err(|e| {
+            sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(
+                e.to_string(),
+            ))
+        })?);
+
         let mut bm25_config = Bm25IndexConfig::default();
         bm25_config.index_dir = PathBuf::from(format!("data/{}/bm25", name));
-        let bm25 = Arc::new(Bm25Index::new(bm25_config).map_err(|e| sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(e.to_string())))?);
-        
+        let bm25 = Arc::new(Bm25Index::new(bm25_config).map_err(|e| {
+            sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(
+                e.to_string(),
+            ))
+        })?);
+
         // Ensure tree and graph configs don't conflict (they use Memory for now, but in case they write to disk)
         let tree = Arc::new(TreeIndex::new(TreeIndexConfig::default()));
         let graph = Arc::new(GraphIndex::new(GraphIndexConfig::default()));
-        
+
         let indexes = IndexSet {
             vector,
             bm25,
             tree,
             graph,
         };
-        
+
         let orchestrator = RetrievalOrchestrator {
             cache: Arc::new(noop::NoopCache),
             router: Arc::new(QueryRouter::new(RoutingConfig::default())),
             query_processor: Arc::new(QueryProcessor::new(
-                llm.clone(), 
-                Arc::new(EmbeddingProviderWrapper { inner: OpenAiEmbeddingProvider::custom(&openai_base_url, &openai_api_key, &config.embedding.model) }), 
-                QueryProcessingConfig::default()
+                llm.clone(),
+                Arc::new(EmbeddingProviderWrapper {
+                    inner: OpenAiEmbeddingProvider::custom(
+                        &openai_base_url,
+                        &openai_api_key,
+                        &config.embedding.model,
+                    ),
+                }),
+                QueryProcessingConfig::default(),
             )),
             acl_resolver: {
                 let acl = InMemoryAclResolver::new();
-                acl.register_user("tenant-test", vec!["admin".to_string(), "public".to_string()]);
+                acl.register_user(
+                    "tenant-test",
+                    vec!["admin".to_string(), "public".to_string()],
+                );
                 Arc::new(acl)
             },
             indexes,
@@ -136,20 +162,18 @@ impl Corpus {
             search_limit: 100,
             min_evidence_count: 3,
         };
-        
+
         Ok(Arc::new(orchestrator))
     }
 
     /// Create a new corpus with the given configuration.
     pub async fn create(name: &str, config: SievrantConfig) -> Result<Self> {
         let orchestrator = Self::build_orchestrator(name, &config).await?;
-        let corpus_manager = Arc::new(
-            CorpusManager::new(PathBuf::from(format!("data/{}", name)))?
-        );
-        
+        let corpus_manager = Arc::new(CorpusManager::new(PathBuf::from(format!("data/{}", name)))?);
+
         // This fails if it already exists
         corpus_manager.create(name, None)?;
-            
+
         Ok(Self {
             name: name.to_string(),
             orchestrator,
@@ -160,13 +184,13 @@ impl Corpus {
     /// Open an existing corpus.
     pub async fn open(name: &str, config: SievrantConfig) -> Result<Self> {
         let orchestrator = Self::build_orchestrator(name, &config).await?;
-        let corpus_manager = Arc::new(
-            CorpusManager::new(PathBuf::from(format!("data/{}", name)))?
-        );
-        
+        let corpus_manager = Arc::new(CorpusManager::new(PathBuf::from(format!("data/{}", name)))?);
+
         // Ensure it exists
         if corpus_manager.get(name).is_none() {
-            return Err(sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(format!("Corpus '{}' not found", name))));
+            return Err(sievrant_core::error::SievrantError::Storage(
+                sievrant_core::error::StorageError::Io(format!("Corpus '{}' not found", name)),
+            ));
         }
 
         Ok(Self {
@@ -178,29 +202,42 @@ impl Corpus {
 
     /// Retrieve corpus statistics and metadata.
     pub async fn stats(&self) -> Result<CorpusMetadata> {
-        let state = self
-            .corpus_manager
-            .get(&self.name)
-            .ok_or_else(|| SievrantError::Storage(sievrant_core::error::StorageError::Io(format!("Corpus {} not found", self.name))))?;
+        let state = self.corpus_manager.get(&self.name).ok_or_else(|| {
+            SievrantError::Storage(sievrant_core::error::StorageError::Io(format!(
+                "Corpus {} not found",
+                self.name
+            )))
+        })?;
         Ok(state.metadata.clone())
     }
 
     // pub async fn add_document(&self, doc: Document) -> Result<IngestionResult> { ... }
-    
-    pub async fn add_document(&self, doc: Document) -> Result<sievrant_core::ingestion::IngestionResult> {
-        let pipeline = sievrant_orchestrator::ingestor::IngestionPipeline::new(Arc::new(SievrantConfig::default()));
+
+    pub async fn add_document(
+        &self,
+        doc: Document,
+    ) -> Result<sievrant_core::ingestion::IngestionResult> {
+        let pipeline = sievrant_orchestrator::ingestor::IngestionPipeline::new(Arc::new(
+            SievrantConfig::default(),
+        ));
         let (result, enriched) = pipeline.ingest(doc.clone(), &self.name).await?;
-        
+
         let chunk_ids: Vec<String> = enriched.iter().map(|c| c.chunk.id.clone()).collect();
-        self.corpus_manager.add_document(&self.name, &doc.id, "api", &doc.content, chunk_ids)?;
+        self.corpus_manager
+            .add_document(&self.name, &doc.id, "api", &doc.content, chunk_ids)?;
 
         if enriched.is_empty() {
             return Ok(result);
         }
 
         let texts: Vec<String> = enriched.iter().map(|c| c.chunk.text.clone()).collect();
-        
-        let embeddings = self.orchestrator.query_processor.embedding_provider.embed(&texts).await?;
+
+        let embeddings = self
+            .orchestrator
+            .query_processor
+            .embedding_provider
+            .embed(&texts)
+            .await?;
 
         let mut index_chunks = Vec::with_capacity(enriched.len());
         for (i, ec) in enriched.into_iter().enumerate() {
@@ -212,7 +249,11 @@ impl Corpus {
             });
         }
 
-        self.orchestrator.indexes.vector.insert(&index_chunks).await?;
+        self.orchestrator
+            .indexes
+            .vector
+            .insert(&index_chunks)
+            .await?;
         self.orchestrator.indexes.bm25.insert(&index_chunks).await?;
         // Tree and Graph indexes are not implemented yet for inserting via add_document
 
@@ -327,10 +368,10 @@ mod tests {
     async fn create_opens_and_retrieves() {
         // Use a unique name to avoid conflicts if tests run in parallel
         let corpus_name = "test-embed-corpus";
-        
+
         // Clean up from previous test runs
         let _ = std::fs::remove_dir_all(format!("data/{}", corpus_name));
-        
+
         {
             let corpus = Corpus::create(corpus_name, SievrantConfig::default())
                 .await
@@ -338,14 +379,14 @@ mod tests {
             assert_eq!(corpus.name, corpus_name);
             // corpus goes out of scope here, releasing tantivy writer lock
         }
-        
+
         // Open the same corpus
         let reopened = Corpus::open(corpus_name, SievrantConfig::default())
             .await
             .expect("open should succeed");
-        
+
         assert_eq!(reopened.name, corpus_name);
-        
+
         // Clean up
         let _ = std::fs::remove_dir_all(format!("data/{}", corpus_name));
     }

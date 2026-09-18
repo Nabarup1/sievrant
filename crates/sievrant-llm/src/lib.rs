@@ -6,9 +6,7 @@ pub mod late_chunk;
 pub mod openai;
 pub mod provider;
 
-
 pub use embeddings::{EmbeddingProvider, FallbackEmbeddingProvider, OpenAiEmbeddingProvider};
 pub use provider::{
-    create_provider, FinishReason, LlmProvider, LlmRequest, LlmResponse, Message, Role,
-    TokenUsage,
+    create_provider, FinishReason, LlmProvider, LlmRequest, LlmResponse, Message, Role, TokenUsage,
 };

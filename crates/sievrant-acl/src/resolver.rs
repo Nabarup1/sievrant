@@ -34,7 +34,7 @@ impl InMemoryAclResolver {
             if user_acls.contains(&"admin".to_string()) {
                 return true;
             }
-            
+
             // Check if user has AT LEAST ONE of the required groups
             for req in required_groups {
                 if user_acls.contains(req) {
@@ -51,17 +51,24 @@ impl AclResolver for InMemoryAclResolver {
     async fn resolve(&self, user_id: Option<&str>, _corpus: &str) -> Result<Vec<String>> {
         match user_id {
             Some(uid) => {
-                println!("DEBUG ACL: looking for '{}', map contains: {:?}", uid, self.user_groups.iter().map(|kv| kv.key().clone()).collect::<Vec<_>>());
+                println!(
+                    "DEBUG ACL: looking for '{}', map contains: {:?}",
+                    uid,
+                    self.user_groups
+                        .iter()
+                        .map(|kv| kv.key().clone())
+                        .collect::<Vec<_>>()
+                );
                 if let Some(groups) = self.user_groups.get(uid) {
                     if groups.is_empty() {
                         return Err(SievrantError::AccessDenied {
-                            reason: format!("User '{}' has no registered ACL groups", uid)
+                            reason: format!("User '{}' has no registered ACL groups", uid),
                         });
                     }
                     Ok(groups.clone())
                 } else {
                     Err(SievrantError::AccessDenied {
-                        reason: format!("User '{}' not found in ACL registry", uid)
+                        reason: format!("User '{}' not found in ACL registry", uid),
                     })
                 }
             }
@@ -87,15 +94,21 @@ mod tests {
     #[tokio::test]
     async fn unregistered_user_denied() {
         let resolver = InMemoryAclResolver::new();
-        let err = resolver.resolve(Some("unknown_user"), "corp").await.unwrap_err();
+        let err = resolver
+            .resolve(Some("unknown_user"), "corp")
+            .await
+            .unwrap_err();
         assert!(matches!(err, SievrantError::AccessDenied { .. }));
     }
 
     #[tokio::test]
     async fn registered_user_has_access() {
         let resolver = InMemoryAclResolver::new();
-        resolver.register_user("alice", vec!["engineering".to_string(), "public".to_string()]);
-        
+        resolver.register_user(
+            "alice",
+            vec!["engineering".to_string(), "public".to_string()],
+        );
+
         assert!(resolver.has_access("alice", &["engineering".to_string()]));
         assert!(resolver.has_access("alice", &["public".to_string()]));
         assert!(!resolver.has_access("alice", &["finance".to_string()]));
@@ -105,7 +118,7 @@ mod tests {
     async fn admin_override_works() {
         let resolver = InMemoryAclResolver::new();
         resolver.register_user("bob", vec!["admin".to_string()]);
-        
+
         // Admin has access to anything
         assert!(resolver.has_access("bob", &["engineering".to_string()]));
         assert!(resolver.has_access("bob", &["top_secret".to_string()]));

@@ -9,9 +9,10 @@ use tantivy::{
     directory::MmapDirectory,
     query::{BooleanQuery, Occur, QueryParser, TermQuery},
     schema::{
-        Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, Value, FAST, STORED, STRING,
+        Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, Value, FAST, STORED,
+        STRING,
     },
-    TantivyDocument, Index, IndexWriter, ReloadPolicy, Term,
+    Index, IndexWriter, ReloadPolicy, TantivyDocument, Term,
 };
 
 use sievrant_core::{
@@ -89,8 +90,8 @@ impl Bm25Index {
 
         let (schema, fields) = build_schema();
 
-        let dir = MmapDirectory::open(&config.index_dir)
-            .map_err(|e| IndexError::Bm25(e.to_string()))?;
+        let dir =
+            MmapDirectory::open(&config.index_dir).map_err(|e| IndexError::Bm25(e.to_string()))?;
 
         let index = Index::open_or_create(dir, schema.clone())
             .map_err(|e| IndexError::Bm25(e.to_string()))?;
@@ -117,10 +118,7 @@ impl Bm25Index {
     }
 
     /// Build an ACL query clause: any chunk whose acl_group field matches any of the allowed groups.
-    fn acl_query(
-        &self,
-        allowed_groups: &[String],
-    ) -> Box<dyn tantivy::query::Query> {
+    fn acl_query(&self, allowed_groups: &[String]) -> Box<dyn tantivy::query::Query> {
         let sub_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = allowed_groups
             .iter()
             .map(|group| {
@@ -161,7 +159,13 @@ impl RetrievalIndex for Bm25Index {
 
         let sanitized_text: String = text
             .chars()
-            .map(|c| if c.is_alphanumeric() || c.is_whitespace() { c } else { ' ' })
+            .map(|c| {
+                if c.is_alphanumeric() || c.is_whitespace() {
+                    c
+                } else {
+                    ' '
+                }
+            })
             .collect();
 
         let text_query = query_parser
@@ -240,9 +244,15 @@ impl RetrievalIndex for Bm25Index {
             doc.add_text(self.fields.text, &chunk.text);
             doc.add_text(self.fields.doc_id, &chunk.metadata.doc_id);
             doc.add_text(self.fields.source_doc, &chunk.metadata.source_doc);
-            doc.add_text(self.fields.doc_version_hash, &chunk.metadata.doc_version_hash);
+            doc.add_text(
+                self.fields.doc_version_hash,
+                &chunk.metadata.doc_version_hash,
+            );
             doc.add_u64(self.fields.token_count, chunk.metadata.token_count as u64);
-            doc.add_u64(self.fields.index_generation, chunk.metadata.index_generation);
+            doc.add_u64(
+                self.fields.index_generation,
+                chunk.metadata.index_generation,
+            );
 
             for group in &chunk.metadata.acl_groups {
                 doc.add_text(self.fields.acl_group, group);
@@ -307,13 +317,19 @@ mod tests {
     async fn indexes_and_retrieves_by_keyword() {
         let dir = TempDir::new().unwrap();
         let idx = Bm25Index::new(make_config(&dir)).unwrap();
-        let chunk = make_chunk("c1", "indemnification clause limits liability", vec!["public".into()]);
+        let chunk = make_chunk(
+            "c1",
+            "indemnification clause limits liability",
+            vec!["public".into()],
+        );
         idx.insert(&[chunk]).await.unwrap();
         idx.commit().unwrap();
 
         let results = idx
             .search(
-                &IndexQuery::Lexical { text: "indemnification".into() },
+                &IndexQuery::Lexical {
+                    text: "indemnification".into(),
+                },
                 &["public".into()],
                 10,
             )
@@ -328,14 +344,24 @@ mod tests {
     async fn acl_filter_excludes_unauthorized_chunks() {
         let dir = TempDir::new().unwrap();
         let idx = Bm25Index::new(make_config(&dir)).unwrap();
-        let restricted = make_chunk("c_restricted", "confidential payment terms", vec!["legal".into()]);
-        let public = make_chunk("c_public", "payment schedule overview", vec!["public".into()]);
+        let restricted = make_chunk(
+            "c_restricted",
+            "confidential payment terms",
+            vec!["legal".into()],
+        );
+        let public = make_chunk(
+            "c_public",
+            "payment schedule overview",
+            vec!["public".into()],
+        );
         idx.insert(&[restricted, public]).await.unwrap();
         idx.commit().unwrap();
 
         let results = idx
             .search(
-                &IndexQuery::Lexical { text: "payment".into() },
+                &IndexQuery::Lexical {
+                    text: "payment".into(),
+                },
                 &["public".into()],
                 10,
             )
@@ -359,7 +385,9 @@ mod tests {
 
         let results = idx
             .search(
-                &IndexQuery::Lexical { text: "lease termination".into() },
+                &IndexQuery::Lexical {
+                    text: "lease termination".into(),
+                },
                 &["public".into()],
                 10,
             )

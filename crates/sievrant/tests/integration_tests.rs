@@ -31,10 +31,10 @@ async fn test_retrieval_quality_finance_bench() -> Result<()> {
     // we just ensure the public SDK surface connects and compiles.
 
     let _config = SievrantConfig::default();
-    
+
     // Simulate creating the corpus
     // let corpus = Corpus::create("finance_bench_test", config).await?;
-    
+
     // Simulate ingestion
     // for doc in load_finance_bench_fixture() {
     //     corpus.add_document(doc).await?;
@@ -42,12 +42,12 @@ async fn test_retrieval_quality_finance_bench() -> Result<()> {
 
     // Execute the one-liner query
     // let packet = retrieve("What was the Q3 2025 revenue?", &corpus).await?;
-    
+
     // Validate output structure (in actual tests we'd assert on the exact RRF scores)
     // assert!(packet.decision == Decision::Answered);
     // assert!(packet.evidence.len() > 0);
     // assert!(packet.evidence[0].text.contains("$10.5 billion"));
-    
+
     Ok(())
 }
 
@@ -56,13 +56,13 @@ async fn test_systems_performance_compounding_scale() -> Result<()> {
     // Systems performance test verifying O(log N) insert cost.
     // In practice, this would insert 10K, 100K, 1M docs, measuring time.
     // We mock the structure here.
-    
+
     let docs = vec![10_000, 100_000];
     for _count in docs {
         // Assert insertion time per document scales logarithmically
         // ...
     }
-    
+
     Ok(())
 }
 
@@ -71,7 +71,7 @@ async fn test_chaos_fault_injection() -> Result<()> {
     // Chaos test: kill during merge.
     // Ensure no data loss.
     // Ensure graceful degradation when vector index disconnects.
-    
+
     Ok(())
 }
 
@@ -87,6 +87,6 @@ async fn test_builder_pattern_options() -> Result<()> {
     //     .skip_cache(true)
     //     .await_result()
     //     .await?;
-    
+
     Ok(())
 }

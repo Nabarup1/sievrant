@@ -19,7 +19,7 @@ impl SievrantCorpusJs {
         let corpus = Corpus::create(&name, config)
             .await
             .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))?;
-        
+
         Ok(Self {
             inner: Arc::new(corpus),
         })
@@ -31,7 +31,7 @@ impl SievrantCorpusJs {
         let corpus = Corpus::open(&name, config)
             .await
             .map_err(|e| Error::new(Status::GenericFailure, e.to_string()))?;
-        
+
         Ok(Self {
             inner: Arc::new(corpus),
         })
