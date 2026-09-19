@@ -18,7 +18,7 @@ try:
     from llama_index.core.base.base_query_engine import BaseQueryEngine
     from llama_index.core.schema import NodeWithScore, TextNode, QueryBundle
     from llama_index.core.callbacks import CallbackManager
-    from llama_index.core.response.schema import Response
+    from llama_index.core.base.response.schema import Response
 except ImportError as exc:
     raise ImportError(
         "LlamaIndex integration requires llama-index-core. "
