@@ -107,11 +107,13 @@ impl SievrantService for SievrantGrpcService {
             }
         };
 
-        let mut config = RetrievalConfig::default();
-        config.coverage = req.coverage;
-        config.token_budget = req.token_budget as usize;
-        config.skip_cache = req.skip_cache;
-        config.user_id = Some(tenant_id);
+        let config = RetrievalConfig {
+            coverage: req.coverage,
+            token_budget: req.token_budget as usize,
+            skip_cache: req.skip_cache,
+            user_id: Some(tenant_id),
+            ..RetrievalConfig::default()
+        };
 
         match corpus
             .orchestrator

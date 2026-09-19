@@ -38,14 +38,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match &cli.command {
         Commands::Health => {
-            let res = client.get(&format!("{}/health", cli.url)).send().await?;
+            let res = client.get(format!("{}/health", cli.url)).send().await?;
             println!("Status: {}", res.status());
             if res.status().is_success() {
                 println!("{}", res.text().await?);
             }
         }
         Commands::Query { corpus, query } => {
-            let mut req = client.post(&format!("{}/v1/query", cli.url));
+            let mut req = client.post(format!("{}/v1/query", cli.url));
             if let Some(token) = &cli.token {
                 req = req.bearer_auth(token);
             }

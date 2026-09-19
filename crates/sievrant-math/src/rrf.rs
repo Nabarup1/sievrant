@@ -205,7 +205,7 @@ mod tests {
             // A document in one list, then add another list that also contains it.
             // Its fused score can only increase (never decrease).
             let base_list = vec![make_candidate("target", 0.8, RetrieverType::VectorIndex)];
-            let score_before = reciprocal_rank_fusion(&[base_list.clone()], 60)
+            let score_before = reciprocal_rank_fusion(std::slice::from_ref(&base_list), 60)
                 .into_iter()
                 .find(|c| c.chunk_id == "target")
                 .unwrap()

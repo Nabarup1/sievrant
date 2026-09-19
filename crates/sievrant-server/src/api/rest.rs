@@ -217,11 +217,13 @@ pub async fn query_handler(
         }
     };
 
-    let mut config = sievrant_core::types::RetrievalConfig::default();
-    config.coverage = payload.coverage;
-    config.token_budget = payload.token_budget;
-    config.skip_cache = payload.skip_cache;
-    config.user_id = Some(tenant.tenant_id.clone());
+    let config = sievrant_core::types::RetrievalConfig {
+        coverage: payload.coverage,
+        token_budget: payload.token_budget,
+        skip_cache: payload.skip_cache,
+        user_id: Some(tenant.tenant_id.clone()),
+        ..sievrant_core::types::RetrievalConfig::default()
+    };
 
     match corpus
         .orchestrator
