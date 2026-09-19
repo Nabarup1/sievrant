@@ -94,7 +94,7 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 arc-swap = "1"
 dashmap = "6"
 crossbeam-channel = "0.5"
-ordered-float = "4.0"
+ordered-float = "5.5"
 
 # Workspace internal dependencies
 sievrant-core = { path = "crates/sievrant-core" }
