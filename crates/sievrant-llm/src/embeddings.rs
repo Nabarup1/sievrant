@@ -139,7 +139,7 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
                 model = %self.model,
                 "embedding batch"
             );
-            let mut batch_result = self.request_batch(&chunk.to_vec()).await?;
+            let mut batch_result = self.request_batch(chunk).await?;
             results.append(&mut batch_result);
         }
 

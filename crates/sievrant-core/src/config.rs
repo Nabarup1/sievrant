@@ -5,7 +5,7 @@ use crate::error::ConfigError;
 
 /// Top-level configuration for a Sievrant instance.
 /// Loaded in priority order: defaults, sievrant.toml, then SIEVRANT_* environment variables.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct SievrantConfig {
     pub llm: LlmConfig,
@@ -20,25 +20,6 @@ pub struct SievrantConfig {
     pub audit: AuditConfig,
     pub calibration: CalibrationConfig,
     pub routing: RoutingConfig,
-}
-
-impl Default for SievrantConfig {
-    fn default() -> Self {
-        Self {
-            llm: LlmConfig::default(),
-            embedding: EmbeddingConfig::default(),
-            qdrant: QdrantConfig::default(),
-            reranker: RerankerConfig::default(),
-            retrieval: RetrievalDefaults::default(),
-            cache: CacheConfig::default(),
-            storage: StorageConfig::default(),
-            server: ServerConfig::default(),
-            observability: ObservabilityConfig::default(),
-            audit: AuditConfig::default(),
-            calibration: CalibrationConfig::default(),
-            routing: RoutingConfig::default(),
-        }
-    }
 }
 
 impl SievrantConfig {

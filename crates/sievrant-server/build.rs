@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tonic_build::configure()
         .file_descriptor_set_path(out_dir.join("sievrant_descriptor.bin"))
-        .compile(&["proto/sievrant.proto"], &["proto"])?;
+        .compile_protos(&["proto/sievrant.proto"], &["proto"])?;
 
     Ok(())
 }

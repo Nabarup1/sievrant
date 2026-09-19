@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 #[napi(js_name = "SievrantCorpus")]
 pub struct SievrantCorpusJs {
+    #[allow(dead_code)]
     inner: Arc<Corpus>,
 }
 

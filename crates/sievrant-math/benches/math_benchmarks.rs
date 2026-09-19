@@ -84,6 +84,7 @@ fn bench_conformal_threshold(c: &mut Criterion) {
             let entries = (0..n)
                 .map(|i| CalibrationEntry {
                     query: format!("q_{}", i),
+                    taxonomy: sievrant_core::types::QueryTaxonomy::Factoid,
                     relevant_chunk_ids: vec!["c1".into()],
                     scores: vec![CalibrationScore {
                         chunk_id: "c1".into(),
@@ -99,7 +100,7 @@ fn bench_conformal_threshold(c: &mut Criterion) {
             };
 
             b.iter(|| {
-                let _ = compute_threshold(black_box(&cal_set), black_box(0.95));
+                let _ = compute_threshold(black_box(&cal_set), black_box(&sievrant_core::types::QueryTaxonomy::Factoid), black_box(0.95));
             })
         });
     }

@@ -113,8 +113,10 @@ impl Corpus {
             ))
         })?);
 
-        let mut bm25_config = Bm25IndexConfig::default();
-        bm25_config.index_dir = PathBuf::from(format!("data/{}/bm25", name));
+        let bm25_config = Bm25IndexConfig {
+            index_dir: PathBuf::from(format!("data/{}/bm25", name)),
+            ..Bm25IndexConfig::default()
+        };
         let bm25 = Arc::new(Bm25Index::new(bm25_config).map_err(|e| {
             sievrant_core::error::SievrantError::Storage(sievrant_core::error::StorageError::Io(
                 e.to_string(),
@@ -213,6 +215,7 @@ impl Corpus {
 
     // pub async fn add_document(&self, doc: Document) -> Result<IngestionResult> { ... }
 
+    /// Ingests a new document into the corpus.
     pub async fn add_document(
         &self,
         doc: Document,

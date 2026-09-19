@@ -94,7 +94,7 @@ impl QueryProcessor {
                 let embedding = if let Some(hyde_vec) = embed_text {
                     hyde_vec
                 } else {
-                    let embeddings = self.embedding_provider.embed(&[expanded.clone()]).await?;
+                    let embeddings = self.embedding_provider.embed(std::slice::from_ref(&expanded)).await?;
                     embeddings.into_iter().next().unwrap_or_default()
                 };
 
@@ -111,7 +111,7 @@ impl QueryProcessor {
                 let expanded = self.expand_query(query).await?;
                 let sub_queries = self.decompose_query(query).await?;
 
-                let embeddings = self.embedding_provider.embed(&[expanded.clone()]).await?;
+                let embeddings = self.embedding_provider.embed(std::slice::from_ref(&expanded)).await?;
                 let embedding = embeddings.into_iter().next().unwrap_or_default();
 
                 Ok(ProcessedQuery {

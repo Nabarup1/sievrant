@@ -7,18 +7,10 @@ pub mod spans;
 use sievrant_core::error::Result;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
+#[derive(Default)]
 pub struct ObservabilityConfig {
     pub enable_json_logs: bool,
     pub otlp_endpoint: Option<String>,
-}
-
-impl Default for ObservabilityConfig {
-    fn default() -> Self {
-        Self {
-            enable_json_logs: false,
-            otlp_endpoint: None,
-        }
-    }
 }
 
 /// Initialize the observability stack: tracing subscriber and optional OTLP exporters.

@@ -513,7 +513,7 @@ mod tests {
         let mut keys = HashMap::new();
         keys.insert(hashed, tenant.to_string());
 
-        let state = AppState::new(keys);
+        let state = AppState::new(keys, sievrant_core::config::SievrantConfig::default());
 
         // Note: For full integration testing, we would insert an Arc<Corpus> here.
         // But since this is just testing the router and auth plumbing,

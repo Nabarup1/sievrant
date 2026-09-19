@@ -124,6 +124,7 @@ impl TreeIndex {
         index
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn insert_at(
         node: &mut TreeNode,
         chunk_id: &str,

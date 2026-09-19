@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -31,6 +33,7 @@ impl SievrantGrpcService {
         Self { corpora, api_keys }
     }
 
+    #[allow(dead_code)]
     fn verify_token(&self, req: &Request<()>) -> Result<String, Status> {
         match req.metadata().get("authorization") {
             Some(t) => {
@@ -176,7 +179,7 @@ impl SievrantService for SievrantGrpcService {
 
     async fn query_stream(
         &self,
-        request: Request<QueryRequest>,
+        _request: Request<QueryRequest>,
     ) -> Result<Response<Self::QueryStreamStream>, Status> {
         let (tx, rx) = tokio::sync::mpsc::channel(4);
 

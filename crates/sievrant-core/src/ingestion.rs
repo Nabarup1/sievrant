@@ -74,7 +74,7 @@ pub struct Chunk {
 /// Approximate token count using the 4-chars-per-token heuristic.
 /// Exact counts come from the embedding model tokenizer.
 pub fn estimate_tokens(text: &str) -> usize {
-    (text.len() + 3) / 4
+    text.len().div_ceil(4)
 }
 
 /// Compute SHA-256 of document content for version tracking.

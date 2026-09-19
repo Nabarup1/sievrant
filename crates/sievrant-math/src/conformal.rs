@@ -93,7 +93,7 @@ impl OnlineCalibrationState {
 
         while idx <= BINS {
             tree[idx] += 1;
-            idx += idx & idx.wrapping_neg();
+            idx += idx.isolate_lowest_one();
         }
     }
 

@@ -30,6 +30,7 @@ impl UsageRecord {
     ///
     /// `naive_k` is the assumed top-K for the naive baseline (default: 20).
     /// `avg_chunk_tokens` is the average chunk size used to estimate naive cost.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         tenant_id: impl Into<String>,
         query_id: impl Into<String>,

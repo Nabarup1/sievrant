@@ -6,6 +6,7 @@ use std::sync::Arc;
 /// A wrapper around the Sievrant embedded Rust engine.
 #[pyclass]
 pub struct SievrantCorpus {
+    #[allow(dead_code)]
     inner: Arc<Corpus>,
 }
 

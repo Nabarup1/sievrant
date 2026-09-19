@@ -21,13 +21,12 @@ impl PartialEq for QueueItem {
 impl Eq for QueueItem {}
 impl PartialOrd for QueueItem {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.marginal_gain_per_token
-            .partial_cmp(&other.marginal_gain_per_token)
+        Some(self.cmp(other))
     }
 }
 impl Ord for QueueItem {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+        self.marginal_gain_per_token.total_cmp(&other.marginal_gain_per_token)
     }
 }
 
