@@ -186,4 +186,13 @@ mod tests {
         let result = pool_chunks(&tokens, &spans).unwrap();
         assert_eq!(result.len(), 3);
     }
+
+    #[test]
+    fn pool_chunks_rejects_empty_span() {
+        let tokens = vec![vec![1.0f32], vec![2.0f32]];
+        let err = pool_chunks(&tokens, &[(1, 1)]);
+        assert!(err.is_err());
+        let err_inverted = pool_chunks(&tokens, &[(2, 1)]);
+        assert!(err_inverted.is_err());
+    }
 }
