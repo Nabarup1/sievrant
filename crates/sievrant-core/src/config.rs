@@ -433,4 +433,11 @@ mod tests {
         cfg.server.port = 0;
         assert!(cfg.validate().is_err());
     }
+
+    #[test]
+    fn zero_rrf_k_fails_validation() {
+        let mut cfg = SievrantConfig::default();
+        cfg.retrieval.rrf_k = 0;
+        assert!(cfg.validate().is_err());
+    }
 }
