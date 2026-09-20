@@ -22,6 +22,9 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
       - name: Cache Cargo registry and build artifacts
         uses: actions/cache@v6
         with:
@@ -48,6 +51,9 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+
       - name: Cache Cargo registry and build artifacts
         uses: actions/cache@v6
         with:
@@ -72,6 +78,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
+
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
 
       - name: Cache Cargo registry and build artifacts
         uses: actions/cache@v6
@@ -115,7 +124,7 @@ jobs:
           cache-dependency-path: sdks/python/pyproject.toml
 
       - name: Install SDK and dev dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,all]"
 
       - name: Run pytest with coverage
         run: |

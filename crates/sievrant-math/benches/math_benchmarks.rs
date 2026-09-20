@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
 use sievrant_core::types::{ChunkMetadata, RankedCandidate, RetrieverType};
 use sievrant_math::{
     conformal::{
@@ -8,6 +7,7 @@ use sievrant_math::{
     rrf::reciprocal_rank_fusion,
     submodular::submodular_select,
 };
+use std::hint::black_box;
 
 fn generate_candidates(count: usize, prefix: &str) -> Vec<RankedCandidate> {
     (0..count)

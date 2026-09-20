@@ -4,6 +4,7 @@
 
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
+RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
 
 # Stage 2: Generate a dependency recipe (a manifest of all crates and their lock files).
 FROM chef AS planner
