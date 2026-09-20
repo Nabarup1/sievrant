@@ -422,4 +422,19 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn nonconformity_score_clamp_bounds() {
+        // High scores (e.g. perfect 1.0) -> nonconformity 0.0
+        let score = nonconformity_score(1.0, 1.0, 1.0);
+        assert!(score.abs() < 1e-10);
+
+        // Low scores (e.g. 0.0) -> nonconformity 1.0
+        let score = nonconformity_score(0.0, 0.0, 0.0);
+        assert!((score - 1.0).abs() < 1e-10);
+
+        // Clamping ensures it doesn't drop below 0 if inputs are > 1
+        let score = nonconformity_score(2.0, 2.0, 2.0);
+        assert!(score.abs() < 1e-10);
+    }
 }
