@@ -5,18 +5,16 @@ Tests for the Sievrant Python SDK client.
 from __future__ import annotations
 
 import pytest
-import pytest_asyncio
 from pytest_httpx import HTTPXMock
 
 from sievrant.client import SievrantClient
-from sievrant.models import Decision, Route, RetrieverType
 from sievrant.exceptions import (
     AuthError,
     CorpusNotFoundError,
     SievrantAbstainedError,
     SievrantServerError,
 )
-
+from sievrant.models import Decision, RetrieverType, Route
 
 BASE_URL = "http://localhost:8080"
 API_KEY = "sk-test-key"

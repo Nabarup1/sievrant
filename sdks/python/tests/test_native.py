@@ -1,10 +1,12 @@
 import pytest
+
 pytest.importorskip("sievrant_native")
 
-import asyncio
-from sievrant_native import SievrantCorpus
-import tempfile
 import os
+import tempfile
+
+from sievrant_native import SievrantCorpus
+
 
 @pytest.mark.asyncio
 async def test_create_and_open_corpus():

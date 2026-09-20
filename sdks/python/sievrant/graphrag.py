@@ -1,6 +1,5 @@
-import os
 import json
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 try:
     import litellm
@@ -16,16 +15,18 @@ class EntityExtractor:
     Otherwise, it falls back to a mock extraction suitable for local testing.
     """
     
-    def __init__(self, model: str = "gpt-4o-mini", api_key: Optional[str] = None):
+    def __init__(self, model: str = "gpt-4o-mini", api_key: str | None = None):
         self.model = model
         self.api_key = api_key
         # Check if litellm is available and if the user wants to use it
         self.use_llm = HAS_LITELLM
         
         if not self.use_llm:
-            print("Warning: litellm not installed. Using mock extractor for GraphRAG. Run `pip install litellm` to use actual LLMs.")
-            
-    async def extract(self, chunk_id: str, text: str) -> Dict[str, Any]:
+            print(
+                "Warning: litellm not installed. Using mock extractor for GraphRAG. "
+                "Run `pip install litellm` to use actual LLMs."
+            )
+    async def extract(self, chunk_id: str, text: str) -> dict[str, Any]:
         """
         Extracts entities and relations.
         Returns:
@@ -36,9 +37,10 @@ class EntityExtractor:
         else:
             return self._extract_mock(chunk_id, text)
             
-    async def _extract_llm(self, chunk_id: str, text: str) -> Dict[str, Any]:
+    async def _extract_llm(self, chunk_id: str, text: str) -> dict[str, Any]:
         prompt = (
-            "You are a GraphRAG extraction system. Given the following text, extract the key entities "
+            "You are a GraphRAG extraction system. "
+            "Given the following text, extract the key entities "
             "(people, organizations, concepts, locations) and the relations between them.\n"
             "Output strictly as a JSON object with 'entities' (list of strings) and 'relations' "
             "(list of objects with 'source', 'target', and 'relation' strings).\n\n"
@@ -78,7 +80,7 @@ class EntityExtractor:
             print(f"LLM extraction failed for chunk {chunk_id}: {e}")
             return self._extract_mock(chunk_id, text)
 
-    def _extract_mock(self, chunk_id: str, text: str) -> Dict[str, Any]:
+    def _extract_mock(self, chunk_id: str, text: str) -> dict[str, Any]:
         """Simple mock extractor that splits capitalized words for testing."""
         words = text.split()
         entities = list(set([w.strip('.,!?"\'') for w in words if w.istitle() and len(w) > 3]))

@@ -428,8 +428,16 @@ mod tests {
         };
 
         let chunks = vec![
-            ("chunk1".to_string(), meta1.clone(), vec!["root".into(), "branchA".into()]),
-            ("chunk2".to_string(), meta2.clone(), vec!["root".into(), "branchB".into()]),
+            (
+                "chunk1".to_string(),
+                meta1.clone(),
+                vec!["root".into(), "branchA".into()],
+            ),
+            (
+                "chunk2".to_string(),
+                meta2.clone(),
+                vec!["root".into(), "branchB".into()],
+            ),
         ];
 
         let index = TreeIndex::build_from_chunks(&chunks);
@@ -437,7 +445,7 @@ mod tests {
         // Run beam search as a user with "groupA" access only
         let mut results = vec![];
         let root = index.root.read().unwrap();
-        
+
         TreeIndex::beam_search(
             &root,
             &["brancha", "branchb"], // query terms

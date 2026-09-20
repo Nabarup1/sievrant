@@ -1,11 +1,12 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from sievrant.models import EvidencePacket, EvidenceChunk
-from sievrant.integrations.langchain import SievrantRetriever as LangChainRetriever
-from sievrant.integrations.llama_index import SievrantRetriever as LlamaIndexRetriever, SievrantQueryEngine
-from sievrant.integrations.dspy import SievrantRM
-
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from sievrant.integrations.dspy import SievrantRM
+from sievrant.integrations.langchain import SievrantRetriever as LangChainRetriever
+from sievrant.integrations.llama_index import SievrantRetriever as LlamaIndexRetriever
+from sievrant.models import EvidenceChunk, EvidencePacket
+
 
 @pytest.fixture
 def mock_packet():
@@ -59,7 +60,9 @@ async def test_llamaindex_retriever(mock_packet):
         instance = MockClient.return_value
         instance.__aenter__.return_value = instance
         instance.query = AsyncMock(return_value=mock_packet)
-        retriever = LlamaIndexRetriever(base_url="http://mock", api_key="mock", corpus="test_corpus")
+        retriever = LlamaIndexRetriever(
+            base_url="http://mock", api_key="mock", corpus="test_corpus"
+        )
         nodes = await retriever.aretrieve("test query")
         assert len(nodes) == 1
         assert nodes[0].get_content() == "Integration test context"

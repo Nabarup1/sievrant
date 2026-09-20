@@ -7,9 +7,6 @@ that queries the Sievrant server and returns passages for DSPy programs.
 
 from __future__ import annotations
 
-import os
-from typing import Optional, List, Union
-
 from sievrant.client import SievrantClient
 
 try:
@@ -59,7 +56,7 @@ class SievrantRM(dspy.Retrieve):
         k: int = 3,
         coverage: float = 0.95,
         token_budget: int = 4000,
-        acl_groups: Optional[list[str]] = None,
+        acl_groups: list[str] | None = None,
     ) -> None:
         super().__init__(k=k)
         self._base_url = base_url
@@ -71,8 +68,8 @@ class SievrantRM(dspy.Retrieve):
 
     def forward(
         self,
-        query_or_queries: Union[str, list[str]],
-        k: Optional[int] = None,
+        query_or_queries: str | list[str],
+        k: int | None = None,
     ) -> dspy.Prediction:
         import asyncio
 

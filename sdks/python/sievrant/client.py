@@ -7,28 +7,28 @@ timeout handling, and clean error mapping to SDK exceptions.
 
 from __future__ import annotations
 
+import contextlib
 import os
-from typing import Optional, Any
+from typing import Any
 
 import httpx
 
-from sievrant.models import (
-    EvidencePacket,
-    HealthResponse,
-    IngestResponse,
-    CorpusMetadata,
-    Decision,
-    Route,
-)
 from sievrant.exceptions import (
     AuthError,
     CorpusNotFoundError,
+    RateLimitError,
+    SievrantAbstainedError,
+    SievrantError,
     SievrantServerError,
     SievrantTimeoutError,
-    SievrantAbstainedError,
     ValidationError,
-    RateLimitError,
-    SievrantError,
+)
+from sievrant.models import (
+    CorpusMetadata,
+    Decision,
+    EvidencePacket,
+    HealthResponse,
+    IngestResponse,
 )
 
 _DEFAULT_TIMEOUT = 300.0
@@ -52,13 +52,13 @@ class SievrantClient:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
         *,
         timeout: float = _DEFAULT_TIMEOUT,
         max_retries: int = _DEFAULT_MAX_RETRIES,
         retry_backoff: float = 1.5,
-        headers: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         resolved_url = base_url or os.environ.get("SIEVRANT_BASE_URL")
         resolved_key = api_key or os.environ.get("SIEVRANT_API_KEY")
@@ -92,7 +92,7 @@ class SievrantClient:
             timeout=httpx.Timeout(timeout),
         )
 
-    async def __aenter__(self) -> "SievrantClient":
+    async def __aenter__(self) -> SievrantClient:
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -118,7 +118,7 @@ class SievrantClient:
         query: str,
         coverage: float = 0.95,
         token_budget: int = 4000,
-        acl_groups: Optional[list[str]] = None,
+        acl_groups: list[str] | None = None,
         skip_cache: bool = False,
         route: str = "AUTO",
         full: bool = False,
@@ -238,22 +238,22 @@ class SievrantClient:
         headers = {} if auth else {"Authorization": ""}
         try:
             resp = await self._client.get(path, headers=headers if not auth else None)
-        except httpx.TimeoutException:
-            raise SievrantTimeoutError(self._timeout)
+        except httpx.TimeoutException as e:
+            raise SievrantTimeoutError(self._timeout) from e
         return self._handle_response(resp)
 
     async def _post(self, path: str, *, json: dict[str, Any]) -> dict[str, Any]:
         try:
             resp = await self._client.post(path, json=json)
-        except httpx.TimeoutException:
-            raise SievrantTimeoutError(self._timeout)
+        except httpx.TimeoutException as e:
+            raise SievrantTimeoutError(self._timeout) from e
         return self._handle_response(resp)
 
     async def _delete(self, path: str) -> dict[str, Any]:
         try:
             resp = await self._client.delete(path)
-        except httpx.TimeoutException:
-            raise SievrantTimeoutError(self._timeout)
+        except httpx.TimeoutException as e:
+            raise SievrantTimeoutError(self._timeout) from e
         return self._handle_response(resp)
 
     def _handle_response(self, resp: httpx.Response) -> dict[str, Any]:
@@ -261,10 +261,8 @@ class SievrantClient:
             return resp.json()
 
         body: dict[str, Any] = {}
-        try:
+        with contextlib.suppress(Exception):
             body = resp.json()
-        except Exception:
-            pass
 
         code = resp.status_code
         message = body.get("message", resp.text)
@@ -289,10 +287,10 @@ class SievrantClient:
     @classmethod
     def sync(
         cls,
-        base_url: Optional[str] = None,
-        api_key: Optional[str] = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
         **kwargs: Any,
-    ) -> "_SyncSievrantClient":
+    ) -> _SyncSievrantClient:
         """Create a synchronous wrapper around the async client.
 
         For use in Jupyter notebooks, simple scripts, or synchronous frameworks.

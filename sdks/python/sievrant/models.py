@@ -6,7 +6,7 @@ Every field name matches the JSON wire format exactly.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -72,7 +72,7 @@ class AuditBlock(BaseModel):
     Satisfies EU AI Act Articles 12 and 13 record-keeping requirements.
     """
 
-    model_version: Optional[str] = None
+    model_version: str | None = None
     """LLM model identifier, e.g. 'gpt-4o-2024-08-06'."""
 
     retrieval_stages_ms: RetrievalStagesMs = Field(default_factory=RetrievalStagesMs)
@@ -114,10 +114,10 @@ class EvidenceChunk(BaseModel):
     path: list[str] = Field(default_factory=list)
     """Hierarchical path within the document, e.g. ['Section 4', '4.2 Term', 'paragraph 3']."""
 
-    page: Optional[int] = None
+    page: int | None = None
     """Page number in the source document, if the format supports pagination."""
 
-    char_span: Optional[tuple[int, int]] = None
+    char_span: tuple[int, int] | None = None
     """Character span [start, end] in the source document for inline highlighting."""
 
     text: str
@@ -129,7 +129,7 @@ class EvidenceChunk(BaseModel):
     rrf_score: float
     """Score from Reciprocal Rank Fusion. Always positive."""
 
-    rerank_score: Optional[float] = None
+    rerank_score: float | None = None
     """Score from the cross-encoder reranker. None if reranking was skipped."""
 
     nonconformity_score: float
@@ -163,10 +163,10 @@ class EvidencePacket(BaseModel):
     query_id: str
     """Unique ID for this retrieval request."""
 
-    trace_id: Optional[str] = None
+    trace_id: str | None = None
     """OpenTelemetry trace ID. Set when OTel is enabled."""
 
-    answer: Optional[str] = None
+    answer: str | None = None
     """Generated answer text. None when decision is ABSTAINED or EVIDENCE_ONLY."""
 
     decision: Decision
@@ -175,7 +175,7 @@ class EvidencePacket(BaseModel):
     coverage_guarantee: float
     """Nominal conformal coverage target configured for this call."""
 
-    empirical_coverage_last_30d: Optional[float] = None
+    empirical_coverage_last_30d: float | None = None
     """Empirical coverage rate over the last 30 days. None until enough data accumulates."""
 
     route: Route
@@ -193,7 +193,7 @@ class EvidencePacket(BaseModel):
     latency_ms: int
     """Total wall-clock latency from query receipt to packet serialization."""
 
-    cost_usd: Optional[float] = None
+    cost_usd: float | None = None
     """Estimated USD cost. None when cost tracking is disabled or a local model is used."""
 
     @field_validator('decision', 'route', mode='before')
@@ -227,4 +227,4 @@ class CorpusMetadata(BaseModel):
     document_count: int
     chunk_count: int
     index_generation: int
-    calibration_set_id: Optional[str] = None
+    calibration_set_id: str | None = None

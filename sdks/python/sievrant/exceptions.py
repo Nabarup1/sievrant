@@ -5,13 +5,13 @@ All exceptions inherit from SievrantError for easy catch-all handling.
 
 from __future__ import annotations
 
-from typing import Optional, Any
+from typing import Any
 
 
 class SievrantError(Exception):
     """Base class for all Sievrant SDK errors."""
 
-    def __init__(self, message: str, *, status_code: Optional[int] = None) -> None:
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
 
@@ -38,7 +38,7 @@ class SievrantServerError(SievrantError):
         self,
         message: str,
         status_code: int,
-        error_code: Optional[str] = None,
+        error_code: str | None = None,
     ) -> None:
         super().__init__(message, status_code=status_code)
         self.error_code = error_code
@@ -69,7 +69,7 @@ class SievrantAbstainedError(SievrantError):
 class ValidationError(SievrantError):
     """Raised when the request payload fails server-side validation (HTTP 422)."""
 
-    def __init__(self, message: str, field: Optional[str] = None) -> None:
+    def __init__(self, message: str, field: str | None = None) -> None:
         self.field = field
         super().__init__(message, status_code=422)
 
@@ -77,7 +77,7 @@ class ValidationError(SievrantError):
 class RateLimitError(SievrantError):
     """Raised when the rate limit for the API key is exceeded (HTTP 429)."""
 
-    def __init__(self, retry_after: Optional[int] = None) -> None:
+    def __init__(self, retry_after: int | None = None) -> None:
         self.retry_after = retry_after
         msg = "Rate limit exceeded"
         if retry_after is not None:

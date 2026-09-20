@@ -1,6 +1,5 @@
-import os
+
 import aiohttp
-from typing import List, Dict, Optional
 
 try:
     import litellm
@@ -14,15 +13,25 @@ class TreeSummarizer:
     Recursively summarizes chunks to generate high-level semantic nodes.
     """
     
-    def __init__(self, api_base: str = "http://localhost:8080", model: str = "gpt-4o-mini", api_key: Optional[str] = None):
+    def __init__(
+        self,
+        api_base: str = "http://localhost:8080",
+        model: str = "gpt-4o-mini",
+        api_key: str | None = None
+    ):
         self.api_base = api_base.rstrip("/")
         self.model = model
         self.api_key = api_key
         
         if not HAS_LITELLM:
-            print("Warning: litellm not installed. TreeSummarizer requires litellm. Run `pip install litellm`.")
+            print(
+                "Warning: litellm not installed. "
+                "TreeSummarizer requires litellm. Run `pip install litellm`."
+            )
 
-    async def summarize_nodes(self, corpus: str, node_texts: Dict[str, List[str]], auth_token: str):
+    async def summarize_nodes(
+        self, corpus: str, node_texts: dict[str, list[str]], auth_token: str
+    ):
         """
         Generates summaries for a set of nodes based on their children's texts,
         and pushes them to the Sievrant backend.
@@ -47,7 +56,7 @@ class TreeSummarizer:
         if requests:
             await self._push_summaries(corpus, requests, auth_token)
             
-    async def _generate_summary(self, texts: List[str]) -> Optional[str]:
+    async def _generate_summary(self, texts: list[str]) -> str | None:
         litellm.suppress_debug_info = True
         
         combined_text = "\n\n---\n\n".join(texts)
@@ -77,7 +86,7 @@ class TreeSummarizer:
             print(f"Failed to generate summary: {e}")
             return None
 
-    async def _push_summaries(self, corpus: str, requests: List[Dict[str, str]], auth_token: str):
+    async def _push_summaries(self, corpus: str, requests: list[dict[str, str]], auth_token: str):
         payload = {
             "corpus": corpus,
             "requests": requests
@@ -91,8 +100,8 @@ class TreeSummarizer:
         url = f"{self.api_base}/v1/tree/summary"
         
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, headers=headers) as response:
+            async with aiohttp.ClientSession() as session, \
+                    session.post(url, json=payload, headers=headers) as response:
                     if response.status == 202:
                         print(f"Successfully pushed {len(requests)} tree summaries.")
                     else:

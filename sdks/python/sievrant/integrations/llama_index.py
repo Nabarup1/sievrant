@@ -7,18 +7,15 @@ implementing BaseQueryEngine and BaseRetriever respectively.
 
 from __future__ import annotations
 
-import os
-from typing import Any, Optional, List
-
 from sievrant.client import SievrantClient
-from sievrant.models import EvidenceChunk, Decision
+from sievrant.models import Decision, EvidenceChunk
 
 try:
-    from llama_index.core.base.base_retriever import BaseRetriever
     from llama_index.core.base.base_query_engine import BaseQueryEngine
-    from llama_index.core.schema import NodeWithScore, TextNode, QueryBundle
-    from llama_index.core.callbacks import CallbackManager
+    from llama_index.core.base.base_retriever import BaseRetriever
     from llama_index.core.base.response.schema import Response
+    from llama_index.core.callbacks import CallbackManager
+    from llama_index.core.schema import NodeWithScore, QueryBundle, TextNode
 except ImportError as exc:
     raise ImportError(
         "LlamaIndex integration requires llama-index-core. "
@@ -72,8 +69,8 @@ class SievrantRetriever(BaseRetriever):
         *,
         coverage: float = 0.95,
         token_budget: int = 4000,
-        acl_groups: Optional[list[str]] = None,
-        callback_manager: Optional[CallbackManager] = None,
+        acl_groups: list[str] | None = None,
+        callback_manager: CallbackManager | None = None,
     ) -> None:
         self._base_url = base_url
         self._api_key = api_key
@@ -83,7 +80,7 @@ class SievrantRetriever(BaseRetriever):
         self._acl_groups = acl_groups or []
         super().__init__(callback_manager=callback_manager)
 
-    def _retrieve(self, query_bundle: QueryBundle) -> List[NodeWithScore]:
+    def _retrieve(self, query_bundle: QueryBundle) -> list[NodeWithScore]:
         import asyncio
 
         loop = asyncio.new_event_loop()
@@ -92,7 +89,7 @@ class SievrantRetriever(BaseRetriever):
         finally:
             loop.close()
 
-    async def _aretrieve(self, query_bundle: QueryBundle) -> List[NodeWithScore]:
+    async def _aretrieve(self, query_bundle: QueryBundle) -> list[NodeWithScore]:
         async with SievrantClient(
             base_url=self._base_url, api_key=self._api_key
         ) as client:
@@ -134,8 +131,8 @@ class SievrantQueryEngine(BaseQueryEngine):
         *,
         coverage: float = 0.95,
         token_budget: int = 4000,
-        acl_groups: Optional[list[str]] = None,
-        callback_manager: Optional[CallbackManager] = None,
+        acl_groups: list[str] | None = None,
+        callback_manager: CallbackManager | None = None,
     ) -> None:
         self._base_url = base_url
         self._api_key = api_key

@@ -411,7 +411,7 @@ mod tests {
     fn test_append_replay_checkpoint_roundtrip() {
         let dir = TempDir::new().unwrap();
         let mut wal = WriteAheadLog::open(dir.path(), 64 * 1024 * 1024).unwrap();
-        
+
         let chunk = ChunkData {
             chunk_id: "c1".into(),
             doc_id: "d1".into(),
@@ -419,17 +419,26 @@ mod tests {
             token_count: 1,
             acl_groups: vec![],
         };
-        wal.append(&WalEntry::InsertChunks { corpus: "corp".into(), chunks: vec![chunk.clone()] }).unwrap();
-        
+        wal.append(&WalEntry::InsertChunks {
+            corpus: "corp".into(),
+            chunks: vec![chunk.clone()],
+        })
+        .unwrap();
+
         // Append checkpoint
-        wal.append(&WalEntry::Checkpoint { generation: 42 }).unwrap();
-        
+        wal.append(&WalEntry::Checkpoint { generation: 42 })
+            .unwrap();
+
         // Replay should return 0 entries since all previous are checkpointed
         let replayed = wal.replay().unwrap();
         assert_eq!(replayed.len(), 0);
-        
+
         // Append one more
-        wal.append(&WalEntry::InsertChunks { corpus: "corp".into(), chunks: vec![chunk.clone()] }).unwrap();
+        wal.append(&WalEntry::InsertChunks {
+            corpus: "corp".into(),
+            chunks: vec![chunk.clone()],
+        })
+        .unwrap();
         let replayed2 = wal.replay().unwrap();
         assert_eq!(replayed2.len(), 1);
     }
@@ -439,12 +448,16 @@ mod tests {
         let dir = TempDir::new().unwrap();
         // Use a tiny limit so it rotates quickly
         let mut wal = WriteAheadLog::open(dir.path(), 128).unwrap();
-        
+
         for i in 0..10 {
             wal.append(&WalEntry::Checkpoint { generation: i }).unwrap();
         }
-        
+
         let segments = list_segment_paths(dir.path());
-        assert!(segments.len() >= 2, "Expected multiple segments due to rotation, got {}", segments.len());
+        assert!(
+            segments.len() >= 2,
+            "Expected multiple segments due to rotation, got {}",
+            segments.len()
+        );
     }
 }

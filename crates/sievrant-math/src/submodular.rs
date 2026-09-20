@@ -26,7 +26,8 @@ impl PartialOrd for QueueItem {
 }
 impl Ord for QueueItem {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.marginal_gain_per_token.total_cmp(&other.marginal_gain_per_token)
+        self.marginal_gain_per_token
+            .total_cmp(&other.marginal_gain_per_token)
     }
 }
 

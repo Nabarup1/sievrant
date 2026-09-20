@@ -100,7 +100,11 @@ fn bench_conformal_threshold(c: &mut Criterion) {
             };
 
             b.iter(|| {
-                let _ = compute_threshold(black_box(&cal_set), black_box(&sievrant_core::types::QueryTaxonomy::Factoid), black_box(0.95));
+                let _ = compute_threshold(
+                    black_box(&cal_set),
+                    black_box(&sievrant_core::types::QueryTaxonomy::Factoid),
+                    black_box(0.95),
+                );
             })
         });
     }

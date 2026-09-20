@@ -8,20 +8,16 @@ LangChain Document objects with full metadata preserved.
 
 from __future__ import annotations
 
-import os
-from typing import Any, Optional
-
 from sievrant.client import SievrantClient
-from sievrant.models import Decision, EvidenceChunk
-from sievrant.exceptions import SievrantAbstainedError
+from sievrant.models import EvidenceChunk
 
 try:
-    from langchain_core.documents import Document
-    from langchain_core.retrievers import BaseRetriever
     from langchain_core.callbacks.manager import (
         AsyncCallbackManagerForRetrieverRun,
         CallbackManagerForRetrieverRun,
     )
+    from langchain_core.documents import Document
+    from langchain_core.retrievers import BaseRetriever
     from pydantic import Field as PydanticField
 except ImportError as exc:
     raise ImportError(
@@ -88,7 +84,7 @@ class SievrantRetriever(BaseRetriever):
     token_budget: int = PydanticField(default=4000, gt=0)
     """Maximum total tokens across all returned evidence. Default 4000."""
 
-    k: Optional[int] = PydanticField(default=None)
+    k: int | None = PydanticField(default=None)
     """Maximum number of documents to return. None = all that pass the conformal gate."""
 
     acl_groups: list[str] = PydanticField(default_factory=list)

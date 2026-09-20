@@ -199,7 +199,9 @@ mod tests {
         assert_eq!(config.search_ef, 128);
 
         match config.backend {
-            VectorBackendConfig::Qdrant { collection_name, .. } => {
+            VectorBackendConfig::Qdrant {
+                collection_name, ..
+            } => {
                 assert_eq!(collection_name, "sievrant");
             }
             _ => panic!("Expected default backend to be Qdrant"),

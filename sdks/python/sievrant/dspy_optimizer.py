@@ -1,6 +1,6 @@
-import os
 import json
-from typing import List, Dict, Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 try:
     import litellm
@@ -16,18 +16,21 @@ class PromptOptimizer:
     asks the LLM to rewrite the prompt to fix the failures.
     """
     
-    def __init__(self, model: str = "gpt-4o", api_key: Optional[str] = None):
+    def __init__(self, model: str = "gpt-4o", api_key: str | None = None):
         self.model = model
         self.api_key = api_key
         
         if not HAS_LITELLM:
-            print("Warning: litellm not installed. PromptOptimizer requires litellm. Run `pip install litellm`.")
+            print(
+                "Warning: litellm not installed. "
+                "PromptOptimizer requires litellm. Run `pip install litellm`."
+            )
             
     async def optimize(
         self, 
         initial_prompt: str, 
-        dataset: List[Dict[str, Any]], 
-        eval_fn: Callable[[Dict[str, Any], Dict[str, Any]], float],
+        dataset: list[dict[str, Any]], 
+        eval_fn: Callable[[dict[str, Any], dict[str, Any]], float],
         max_iterations: int = 3
     ) -> str:
         """
@@ -36,7 +39,8 @@ class PromptOptimizer:
         Args:
             initial_prompt: The base instructions.
             dataset: List of dicts, e.g., [{"text": "...", "expected": {...}}, ...]
-            eval_fn: A function that takes (prediction, expected) and returns a float score 0.0 - 1.0.
+            eval_fn: A function that takes (prediction, expected) and returns a float
+                score 0.0 - 1.0.
             max_iterations: Max optimization loops.
             
         Returns:
@@ -91,7 +95,7 @@ class PromptOptimizer:
         print(f"[Optimizer] Finished. Best score: {best_score:.2f}")
         return best_prompt
         
-    async def _run_prompt(self, prompt: str, text: str) -> Dict[str, Any]:
+    async def _run_prompt(self, prompt: str, text: str) -> dict[str, Any]:
         """Runs the extraction prompt for evaluation."""
         litellm.suppress_debug_info = True
         
@@ -118,14 +122,15 @@ class PromptOptimizer:
         except Exception as e:
             return {"error": str(e)}
 
-    async def _rewrite_prompt(self, current_prompt: str, failures: List[Dict[str, Any]]) -> str:
+    async def _rewrite_prompt(self, current_prompt: str, failures: list[dict[str, Any]]) -> str:
         """Asks the LLM to improve the prompt."""
         litellm.suppress_debug_info = True
         
         failures_text = json.dumps(failures, indent=2)
         
         meta_prompt = (
-            "You are a Prompt Engineer. Your task is to improve a data extraction prompt based on its failures.\n"
+            "You are a Prompt Engineer. "
+            "Your task is to improve a data extraction prompt based on its failures.\n"
             f"CURRENT PROMPT:\n{current_prompt}\n\n"
             f"FAILURES (Sample):\n{failures_text}\n\n"
             "Analyze why the current prompt failed on the expected outputs. "

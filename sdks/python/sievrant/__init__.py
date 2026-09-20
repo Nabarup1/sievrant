@@ -5,28 +5,28 @@ The statistically audited retrieval decision engine for enterprise AI.
 """
 
 from sievrant.client import SievrantClient
-from sievrant.models import (
-    EvidencePacket,
-    EvidenceChunk,
-    AuditBlock,
-    RetrievalStagesMs,
-    Decision,
-    Route,
-    RetrieverType,
-    HealthResponse,
-    IngestResponse,
-    CorpusMetadata,
-)
+from sievrant.dspy_optimizer import PromptOptimizer
 from sievrant.exceptions import (
-    SievrantError,
     AuthError,
     CorpusNotFoundError,
+    SievrantAbstainedError,
+    SievrantError,
     SievrantServerError,
     SievrantTimeoutError,
-    SievrantAbstainedError,
 )
 from sievrant.graphrag import EntityExtractor
-from sievrant.dspy_optimizer import PromptOptimizer
+from sievrant.models import (
+    AuditBlock,
+    CorpusMetadata,
+    Decision,
+    EvidenceChunk,
+    EvidencePacket,
+    HealthResponse,
+    IngestResponse,
+    RetrievalStagesMs,
+    RetrieverType,
+    Route,
+)
 from sievrant.raptor import TreeSummarizer
 
 __all__ = [
