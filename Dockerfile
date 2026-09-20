@@ -22,8 +22,8 @@ COPY . .
 RUN cargo build --release --bin sievrant-server
 
 # Stage 4: Minimal runtime image. Copies only the compiled binary.
-# Using debian-slim to keep the image small while retaining glibc for reqwest/openssl.
-FROM debian:bookworm-slim AS runtime
+# Using ubuntu:24.04 to ensure we have a compatible glibc version (2.39).
+FROM ubuntu:24.04 AS runtime
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
