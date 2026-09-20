@@ -196,7 +196,7 @@ class EvidencePacket(BaseModel):
     cost_usd: float | None = None
     """Estimated USD cost. None when cost tracking is disabled or a local model is used."""
 
-    @field_validator('decision', 'route', mode='before')
+    @field_validator("decision", "route", mode="before")
     @classmethod
     def uppercase_enums(cls, v: str) -> str:
         if isinstance(v, str):

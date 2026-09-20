@@ -27,7 +27,7 @@ def mock_packet():
                 ingested_at="2023-01-01T00:00:00Z",
                 index_generation=1,
                 freshness_hours=0.0,
-                token_count=10
+                token_count=10,
             )
         ],
         query="test",
@@ -39,8 +39,9 @@ def mock_packet():
         coverage_guarantee=0.9,
         route="FAST",
         cache_hit=False,
-        latency_ms=10.0
+        latency_ms=10.0,
     )
+
 
 @pytest.mark.asyncio
 async def test_langchain_retriever(mock_packet):
@@ -53,6 +54,7 @@ async def test_langchain_retriever(mock_packet):
         assert len(docs) == 1
         assert docs[0].page_content == "Integration test context"
         assert docs[0].metadata["rrf_score"] == 0.9
+
 
 @pytest.mark.asyncio
 async def test_llamaindex_retriever(mock_packet):
@@ -68,6 +70,7 @@ async def test_llamaindex_retriever(mock_packet):
         assert nodes[0].get_content() == "Integration test context"
         assert nodes[0].score == 0.9
 
+
 @pytest.mark.asyncio
 async def test_dspy_rm(mock_packet):
     with patch("sievrant.integrations.dspy.SievrantClient", autospec=True) as MockClient:
@@ -77,4 +80,3 @@ async def test_dspy_rm(mock_packet):
         rm = SievrantRM(base_url="http://mock", api_key="mock", corpus="test_corpus")
         # Just simple test to ensure it initiates
         assert rm is not None
-

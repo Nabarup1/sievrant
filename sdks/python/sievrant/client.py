@@ -303,6 +303,7 @@ class _SyncSievrantClient:
 
     def __init__(self, **kwargs: Any) -> None:
         import asyncio
+
         self._async = SievrantClient(**kwargs)
         self._loop = asyncio.new_event_loop()
 

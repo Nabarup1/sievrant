@@ -90,9 +90,7 @@ class SievrantRetriever(BaseRetriever):
             loop.close()
 
     async def _aretrieve(self, query_bundle: QueryBundle) -> list[NodeWithScore]:
-        async with SievrantClient(
-            base_url=self._base_url, api_key=self._api_key
-        ) as client:
+        async with SievrantClient(base_url=self._base_url, api_key=self._api_key) as client:
             packet = await client.query(
                 corpus=self._corpus,
                 query=query_bundle.query_str,
@@ -152,9 +150,7 @@ class SievrantQueryEngine(BaseQueryEngine):
             loop.close()
 
     async def _aquery(self, query_bundle: QueryBundle) -> Response:
-        async with SievrantClient(
-            base_url=self._base_url, api_key=self._api_key
-        ) as client:
+        async with SievrantClient(base_url=self._base_url, api_key=self._api_key) as client:
             packet = await client.query(
                 corpus=self._corpus,
                 query=query_bundle.query_str,

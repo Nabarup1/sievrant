@@ -149,9 +149,7 @@ async def test_raise_on_abstain(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(url=f"{BASE_URL}/v1/query", json=abstained_packet)
     async with SievrantClient(base_url=BASE_URL, api_key=API_KEY) as client:
         with pytest.raises(SievrantAbstainedError) as exc_info:
-            await client.query(
-                corpus="test", query="unanswerable question", raise_on_abstain=True
-            )
+            await client.query(corpus="test", query="unanswerable question", raise_on_abstain=True)
     assert "01932a7b" in exc_info.value.query_id
 
 

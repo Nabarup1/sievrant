@@ -13,8 +13,7 @@ try:
     import dspy
 except ImportError as exc:
     raise ImportError(
-        "DSPy integration requires dspy-ai. "
-        "Install it with: pip install 'sievrant[dspy]'"
+        "DSPy integration requires dspy-ai. Install it with: pip install 'sievrant[dspy]'"
     ) from exc
 
 
@@ -78,9 +77,7 @@ class SievrantRM(dspy.Retrieve):
 
         loop = asyncio.new_event_loop()
         try:
-            all_passages = loop.run_until_complete(
-                self._retrieve_all(queries, k)
-            )
+            all_passages = loop.run_until_complete(self._retrieve_all(queries, k))
         finally:
             loop.close()
 
@@ -88,9 +85,7 @@ class SievrantRM(dspy.Retrieve):
 
     async def _retrieve_all(self, queries: list[str], k: int) -> list[str]:
         passages: list[str] = []
-        async with SievrantClient(
-            base_url=self._base_url, api_key=self._api_key
-        ) as client:
+        async with SievrantClient(base_url=self._base_url, api_key=self._api_key) as client:
             for query in queries:
                 packet = await client.query(
                     corpus=self._corpus,
