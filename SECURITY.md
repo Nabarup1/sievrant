@@ -1,29 +1,37 @@
-# Sievrant Security & Threat Model
+# Security Policy
 
-This document outlines the security posture, threat model, and handling of secrets within the Sievrant RAG engine.
+## Supported Versions
 
-## 1. Secrets Management
+Currently, only the latest `main` branch and the latest stable release are supported with security updates. 
 
-Sievrant relies on sensitive credentials to authenticate with backing stores and LLM providers. **Under no circumstances should any secrets be hardcoded or checked into source control.**
+| Version | Supported          |
+| ------- | ------------------ |
+| 0.1.x   | :white_check_mark: |
+| < 0.1   | :x:                |
 
-- **API Keys**: Keys such as `SIEVRANT_API_KEY`, `QDRANT_API_KEY`, and `OPENAI_API_KEY` must be injected into the application exclusively via environment variables or a dedicated secret manager (e.g., AWS Secrets Manager, HashiCorp Vault) at runtime.
-- **Environment Files**: The provided `.env.example` file is for documentation purposes only. Real `.env` files containing secrets are ignored via `.gitignore` and must never be committed.
+## Reporting a Vulnerability
 
-## 2. API Authentication & Token Hashing
+Please do not report security vulnerabilities through public GitHub issues.
 
-To protect against timing attacks and database compromise, Sievrant implements a robust API key verification scheme:
+Instead, please send an email to `security@sievrant.com` with a detailed description of the vulnerability, steps to reproduce, and any potential impact. We will respond within 48 hours to acknowledge the report and provide an estimated timeline for a fix. 
 
-- **Verification (`AppState::verify_token`)**: Incoming API requests are authenticated by comparing the provided token against the configured server key.
-- **Hashing Strategy**: Instead of performing plain-text comparisons, tokens are cryptographically hashed using **SHA-256** prior to validation. This ensures that even if application memory or logs are dumped, the raw API tokens cannot be easily recovered or reused.
+## Threat Model
 
-## 3. Tenant Isolation & Access Control (ACL)
+Sievrant is a retrieval-augmented generation (RAG) engine. As such, it operates on user-provided data and queries, and communicates with external LLM providers. 
 
-Sievrant supports multi-tenant document retrieval, ensuring that users only have access to documents they are authorized to see.
+### Trust Boundaries
 
-- **ACL Groups**: Every chunk of evidence ingested into Sievrant is tagged with an optional list of `acl_groups` in its `ChunkMetadata`.
-- **Query Time Filtering**: During retrieval, queries are accompanied by the user's `acl_groups`. The retrieval engine (e.g., `TreeIndex::beam_search`, Vector Search) applies a hard filter to only consider candidate chunks where at least one ACL group matches. 
-- **Isolation Boundary**: This mechanism guarantees a strict isolation boundary between tenants. A malicious user cannot retrieve or reconstruct documents belonging to another tenant's ACL group, as the filter is enforced natively at the index traversal layer before the LLM synthesizes an answer.
+1. **Client to Server**: The boundary between the API client (user) and the Sievrant server. Authenticated via API keys or OAuth (configurable).
+2. **Server to Storage**: The boundary between the Sievrant server and the persistent storage (vector indexes, disk). We assume the storage layer is trusted and protected by OS-level access controls.
+3. **Server to LLM**: The boundary between the Sievrant server and external LLM APIs (e.g., OpenAI, Anthropic). We assume the LLM provider is a trusted third-party, but we do not blindly trust the generated output to be safe for execution (e.g. XSS if rendered).
 
-## 4. Reporting Vulnerabilities
+### Key Threats Mitigated
 
-If you discover a security vulnerability within Sievrant, please do not disclose it publicly. Instead, submit a report to the maintainers directly. We take all security concerns seriously and will work to address them promptly.
+* **Prompt Injection**: LLMs are susceptible to prompt injection. Sievrant mitigates this by strictly separating the retrieved evidence from the system prompt, and escaping user queries. However, users should remain vigilant about downstream usage of generated answers.
+* **Data Exfiltration**: The conformal gate ensures that only relevant, high-quality chunks are passed to the LLM. The ACL system ensures that users can only retrieve chunks they are authorized to access, preventing cross-tenant data leakage.
+* **Denial of Service**: Expensive vector searches are bounded by strict `search_limit` defaults and token budgets to prevent resource exhaustion attacks.
+
+### Remaining Risks
+
+* **LLM Hallucinations**: While reciprocal rank fusion and conformal prediction reduce hallucinations by ensuring high-quality evidence, no RAG system can completely eliminate the risk of an LLM generating false information.
+* **Malicious Ingestion**: If an attacker can ingest maliciously crafted documents, they could attempt to influence the retrieval results (e.g., data poisoning). Input validation is performed during ingestion, but administrators should restrict ingestion access to trusted parties.
