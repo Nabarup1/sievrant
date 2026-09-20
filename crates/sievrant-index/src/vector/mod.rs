@@ -185,3 +185,24 @@ impl RetrievalIndex for VectorIndex {
         RetrieverType::VectorIndex
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vector_index_config_defaults() {
+        let config = VectorIndexConfig::default();
+        assert_eq!(config.embedding_dimensions, 3072);
+        assert_eq!(config.hnsw_m, 16);
+        assert_eq!(config.hnsw_ef, 100);
+        assert_eq!(config.search_ef, 128);
+
+        match config.backend {
+            VectorBackendConfig::Qdrant { collection_name, .. } => {
+                assert_eq!(collection_name, "sievrant");
+            }
+            _ => panic!("Expected default backend to be Qdrant"),
+        }
+    }
+}
