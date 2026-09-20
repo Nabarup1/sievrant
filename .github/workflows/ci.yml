@@ -170,6 +170,24 @@ jobs:
       - name: Run tests
         run: npm test
 
+  compose-smoke:
+    name: Docker Compose Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Start services
+        run: docker compose -f docker-compose.yml up -d
+
+      - name: Wait for server health
+        run: |
+          timeout 60 bash -c 'until curl -s http://localhost:8080/v1/health | grep -q "\"status\":\"ok\""; do sleep 2; done'
+          curl -s http://localhost:8080/v1/health
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+
   security-audit:
     name: Security Audits
     runs-on: ubuntu-latest
