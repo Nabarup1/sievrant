@@ -274,4 +274,10 @@ mod tests {
         assert!(entities.contains(&"Effective Date".into()));
         assert!(entities.contains(&"Lease Term".into()));
     }
+
+    #[test]
+    fn extract_entities_no_matches_returns_empty() {
+        let entities = extract_entities("Just a normal query without any special words");
+        assert!(entities.is_empty());
+    }
 }
