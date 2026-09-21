@@ -35,7 +35,7 @@ pydantic>=2.8.0
 httpx>=0.28.1
 
 # Jupyter for interactive analysis
-jupyterlab>=4.2.0
+jupyterlab>=4.6.3
 ipykernel>=6.29.0
 
 # JSON/JSONL processing
