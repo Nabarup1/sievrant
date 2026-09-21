@@ -29,7 +29,7 @@ sievrant = { workspace = true }
 sievrant-core = { workspace = true }
 sievrant-observability = { workspace = true }
 utoipa = { version = "4", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "7", features = ["axum"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 tonic = "0.12"
 prost = "0.13"
 tokio-stream = "0.1"
