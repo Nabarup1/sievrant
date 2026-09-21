@@ -62,7 +62,7 @@ jobs:
           tar -czf sievrant-server-linux-x86_64.tar.gz -C dist sievrant-server
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: sievrant-server-linux-x86_64.tar.gz
           generate_release_notes: true
