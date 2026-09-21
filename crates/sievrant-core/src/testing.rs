@@ -1,5 +1,5 @@
 pub mod mock_data {
-    use crate::types::{ChunkMetadata, EvidenceChunk};
+    use crate::types::EvidenceChunk;
 
     pub fn build_mock_chunk(id: &str) -> EvidenceChunk {
         EvidenceChunk {

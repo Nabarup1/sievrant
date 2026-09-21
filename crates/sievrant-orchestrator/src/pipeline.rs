@@ -1,33 +1,30 @@
 use std::sync::Arc;
 
-use sha2::{Digest, Sha256};
 use tracing::{info, warn};
 
 use sievrant_core::{
     error::Result,
     types::{
-        AuditBlock, Decision, EvidenceChunk, EvidencePacket, QueryId, RankedCandidate,
-        RetrievalConfig, RetrievalStagesMs, Route,
+        AuditBlock, Decision, EvidenceChunk, EvidencePacket, QueryId,
+        RetrievalConfig, RetrievalStagesMs,
     },
 };
-use sievrant_index::vector::IndexQuery;
-use sievrant_llm::{
-    provider::{LlmRequest, Message, Role},
-    LlmProvider,
-};
+use sievrant_llm::LlmProvider;
 use sievrant_math::{
     conformal::{conformal_gate, nonconformity_score},
     rrf::reciprocal_rank_fusion,
     submodular::submodular_select,
 };
 use sievrant_query::{
-    processing::{ProcessedQuery, QueryProcessor},
+    processing::QueryProcessor,
     router::QueryRouter,
 };
 use sievrant_rerank::{rerank_candidates, Reranker};
 
 use sievrant_acl::resolver::AclResolver;
 use sievrant_index::RetrievalIndex;
+
+use crate::stages::*;
 
 /// The four live indexes accessed for every retrieval.
 pub struct IndexSet {
@@ -201,7 +198,7 @@ impl RetrievalOrchestrator {
         let t = std::time::Instant::now();
         let answer = if matches!(decision, Decision::Answered) {
             Some(
-                self.generate_answer(query, &conformal_result.evidence)
+                generate_answer(self.llm.as_ref(), query, &conformal_result.evidence)
                     .await?,
             )
         } else {
@@ -209,29 +206,7 @@ impl RetrievalOrchestrator {
         };
         stages_ms.llm_generation = t.elapsed().as_millis() as u64;
 
-        let evidence_chunks: Vec<EvidenceChunk> = conformal_result
-            .evidence
-            .into_iter()
-            .map(|e| EvidenceChunk {
-                chunk_id: e.chunk_id,
-                source_doc: e.metadata.source_doc.clone(),
-                doc_version_hash: e.metadata.doc_version_hash.clone(),
-                path: e.metadata.path.clone(),
-                page: e.metadata.page,
-                char_span: e.metadata.char_span,
-                text: e.text,
-                retriever: sievrant_core::types::RetrieverType::VectorIndex,
-                rrf_score: e.fused_score,
-                rerank_score: Some(e.rerank_score),
-                nonconformity_score: e.nonconformity_score,
-                submodular_marginal_gain: e.marginal_gain,
-                ingested_at: e.metadata.ingested_at,
-                index_generation: e.metadata.index_generation,
-                acl_groups: e.metadata.acl_groups,
-                freshness_hours: 0.0,
-                token_count: e.metadata.token_count,
-            })
-            .collect();
+        let evidence_chunks: Vec<EvidenceChunk> = map_evidence_chunks(conformal_result.evidence);
 
         let session_hash =
             compute_session_hash(&query_id, query, &evidence_chunks, answer.as_deref());
@@ -266,125 +241,9 @@ impl RetrievalOrchestrator {
 
         Ok(packet)
     }
-
-    async fn generate_answer(
-        &self,
-        query: &str,
-        evidence: &[sievrant_core::types::SelectedEvidence],
-    ) -> Result<String> {
-        let evidence_text: String = evidence
-            .iter()
-            .map(|e| {
-                format!(
-                    "[{}] (Source: {}, Path: {})\n{}",
-                    e.chunk_id,
-                    e.metadata.source_doc,
-                    e.metadata.path.join(" > "),
-                    e.text
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n\n");
-
-        let prompt = format!(
-            "You are a precise, factual assistant. Answer the following question using ONLY \
-             the provided evidence chunks. Cite specific sections using [chunk_id] notation.\n\n\
-             If the evidence does not contain enough information to answer, say \"The provided \
-             evidence does not contain sufficient information to answer this question.\"\n\n\
-             Question: {query}\n\n\
-             Evidence:\n{evidence_text}\n\nAnswer:"
-        );
-
-        let req = LlmRequest {
-            messages: vec![Message {
-                role: Role::User,
-                content: prompt,
-            }],
-            max_tokens: 1024,
-            temperature: 0.0,
-            system_prompt: None,
-        };
-
-        let response = self.llm.complete(req).await?;
-        Ok(response.content.trim().to_string())
-    }
 }
 
-/// Execute all four index searches in parallel using tokio::join!.
-/// A failing index records a warning and contributes an empty list;
-/// the pipeline continues with whatever indexes succeed.
-async fn parallel_index_search(
-    indexes: &IndexSet,
-    query: &ProcessedQuery,
-    acl_filter: &[String],
-    limit: usize,
-) -> (Vec<Vec<RankedCandidate>>, Vec<String>) {
-    let vec_query = IndexQuery::Vector {
-        embedding: query.embedding.clone(),
-    };
-    let bm25_query = IndexQuery::Lexical {
-        text: query.original.clone(),
-    };
-    let tree_query = IndexQuery::Structural {
-        text: query.original.clone(),
-        path_hints: vec![],
-    };
-    let graph_query = IndexQuery::Graph {
-        entities: query.entities.clone(),
-        query_embedding: query.embedding.clone(),
-    };
 
-    let (vec_r, bm25_r, tree_r, graph_r) = tokio::join!(
-        indexes.vector.search(&vec_query, acl_filter, limit),
-        indexes.bm25.search(&bm25_query, acl_filter, limit),
-        indexes.tree.search(&tree_query, acl_filter, limit),
-        indexes.graph.search(&graph_query, acl_filter, limit),
-    );
-
-    let mut ranked_lists = Vec::with_capacity(4);
-    let mut warnings = Vec::new();
-
-    for (name, result) in [
-        ("vector", vec_r),
-        ("bm25", bm25_r),
-        ("tree", tree_r),
-        ("graph", graph_r),
-    ] {
-        match result {
-            Ok(candidates) => ranked_lists.push(candidates),
-            Err(e) => warnings.push(format!("{name} index failed (degraded): {e}")),
-        }
-    }
-
-    (ranked_lists, warnings)
-}
-
-fn compute_session_hash(
-    query_id: &QueryId,
-    query: &str,
-    evidence: &[EvidenceChunk],
-    answer: Option<&str>,
-) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(query_id.0.as_bytes());
-    hasher.update(query.as_bytes());
-    for chunk in evidence {
-        hasher.update(chunk.chunk_id.as_bytes());
-    }
-    if let Some(ans) = answer {
-        hasher.update(ans.as_bytes());
-    }
-    format!("sha256:{:x}", hasher.finalize())
-}
-
-fn route_into_packet_route(route: &Route) -> sievrant_core::types::Route {
-    match route {
-        Route::Fast => sievrant_core::types::Route::Fast,
-        Route::Standard => sievrant_core::types::Route::Standard,
-        Route::Slow => sievrant_core::types::Route::Slow,
-        Route::Cached => sievrant_core::types::Route::Cached,
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -8,13 +8,13 @@ use sievrant_math::conformal::{
 fn test_conformal_gate_edge_cases() {
     let mut evidence = vec![];
     let scores = [0.2, 0.3, 0.4, 0.5, 0.6];
-    for i in 0..5 {
+    for (i, &score) in scores.iter().enumerate() {
         evidence.push(SelectedEvidence {
             chunk_id: format!("chunk-{}", i),
             fused_score: 0.9,
             rerank_score: 0.8,
             marginal_gain: 0.1,
-            nonconformity_score: scores[i],
+            nonconformity_score: score,
             text: format!("evidence text {}", i),
             metadata: ChunkMetadata {
                 doc_id: "doc1".to_string(),
@@ -83,7 +83,7 @@ fn test_compute_threshold_high_coverage() {
     // For n=100, target_count = ceil(101 * 0.95) = 96
     // So the threshold should cover 96 items. Score 96 is 0.96.
     let threshold = compute_threshold(&cal, &QueryTaxonomy::Analytical, 0.95).unwrap();
-    assert!(threshold >= 0.95 && threshold <= 0.97);
+    assert!((0.95..=0.97).contains(&threshold));
 }
 
 #[test]
