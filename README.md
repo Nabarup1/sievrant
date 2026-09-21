@@ -322,6 +322,15 @@ npm install sievrant
 sievrant = "0.1"
 ```
 
+## Offline Testing
+
+The Sievrant workspace is built for completely offline, dependency-free integration testing using mock traits. You can verify pipeline logic without Docker, Qdrant, or any API keys.
+
+```bash
+# Run all workspace tests, including orchestrator decision paths, completely offline
+cargo test --workspace
+```
+
 ---
 
 ## Reproducing Benchmarks

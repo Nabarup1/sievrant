@@ -99,7 +99,7 @@ jobs:
           tool: cargo-llvm-cov
 
       - name: Collect coverage
-        run: cargo llvm-cov --workspace --lib --lcov --output-path lcov.info --fail-under-lines 65
+        run: cargo llvm-cov --workspace --lib --lcov --output-path lcov.info --fail-under-lines 75
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v6

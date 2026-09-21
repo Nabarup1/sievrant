@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+**Core Engine**
+- `sievrant-core`: Added `testing` module with mock data builders to facilitate offline integration testing.
+- `sievrant-math`: Added integration tests for conformal gating boundary conditions.
+- `sievrant-orchestrator`: Added mock implementations for `RetrievalIndex` and `LlmProvider` to enable end-to-end pipeline testing without Docker or external network calls.
+- `.github/workflows/ci.yml`: Increased `cargo llvm-cov` threshold to 75%.
+- `README.md`: Documented how to run `cargo test --workspace` for offline integration tests.
+
 ## [0.1.0] - 2026-09-09
 
 ### Added
