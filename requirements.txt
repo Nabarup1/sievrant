@@ -17,7 +17,7 @@ numpy>=2.0.0
 scipy>=1.14.0
 
 # Embeddings (for calibration data prep and evaluation)
-openai>=1.40.0
+openai>=3.16.0
 anthropic>=1.6.0
 sentence-transformers>=3.0.0
 
