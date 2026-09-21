@@ -31,7 +31,7 @@ sievrant-observability = { workspace = true }
 utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 tonic = "0.12"
-prost = "0.13"
+prost = "0.14"
 tokio-stream = "0.1"
 dotenvy = "0.15"
 
