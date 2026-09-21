@@ -366,6 +366,9 @@ The default `main.rs` boots with a hardcoded `sk-test` key for development. For 
 1. Set `SIEVRANT_API_KEYS` as a comma-separated list of valid keys, or
 2. Connect to a PostgreSQL auth backend (Phase 5 SaaS infrastructure)
 
+Please review our [Security Policy](../../SECURITY.md) for detailed guidance on handling secrets.
+In `docker-compose`, prefer using Docker secrets or a `.env` file instead of hardcoding keys in `docker-compose.yml`.
+
 ### Resource Limits
 
 Add resource limits to prevent memory pressure:

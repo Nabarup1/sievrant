@@ -11,6 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 **Core Engine**
+- `sievrant-server`: Refactored `rest.rs` to extract DTOs into `dto.rs`.
+- `sievrant-orchestrator`: Refactored `pipeline.rs` to extract functional stages into `stages.rs`.
 - `sievrant-core`: Added `testing` module with mock data builders to facilitate offline integration testing.
 - `sievrant-math`: Added integration tests for conformal gating boundary conditions.
 - `sievrant-orchestrator`: Added mock implementations for `RetrievalIndex` and `LlmProvider` to enable end-to-end pipeline testing without Docker or external network calls.

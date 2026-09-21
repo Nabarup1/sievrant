@@ -367,6 +367,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions welcome.
 
 ---
 
+## Security
+
+Please see [SECURITY.md](SECURITY.md) for information on our threat model, key handling, and vulnerability reporting process.
+
+---
+
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).

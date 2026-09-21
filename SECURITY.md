@@ -2,36 +2,31 @@
 
 ## Supported Versions
 
-Currently, only the latest `main` branch and the latest stable release are supported with security updates. 
+Currently, Sievrant is in early development. Only the latest release on the `main` branch is supported for security updates. 
 
 | Version | Supported          |
 | ------- | ------------------ |
 | 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
-
-## Reporting a Vulnerability
-
-Please do not report security vulnerabilities through public GitHub issues.
-
-Instead, please send an email to `security@sievrant.com` with a detailed description of the vulnerability, steps to reproduce, and any potential impact. We will respond within 48 hours to acknowledge the report and provide an estimated timeline for a fix. 
+| < 0.1.0 | :x:                |
 
 ## Threat Model
 
-Sievrant is a retrieval-augmented generation (RAG) engine. As such, it operates on user-provided data and queries, and communicates with external LLM providers. 
+Sievrant's security architecture is built on the following assumptions:
 
-### Trust Boundaries
+1.  **API Tokens**: Clients must use a valid Bearer token for all write (ingest) and read (query) operations. Tokens are managed by the server and are hashed using SHA-256 for validation.
+2.  **Access Control**: Documents can be ingested with associated ACL groups (e.g., `["engineering", "hr"]`). During a query, if the user token maps to specific groups, only documents intersecting with those groups are returned.
+3.  **No Internal Auth**: The server currently does not implement a built-in user management system. It relies on tokens issued externally or configured via environment variables.
 
-1. **Client to Server**: The boundary between the API client (user) and the Sievrant server. Authenticated via API keys or OAuth (configurable).
-2. **Server to Storage**: The boundary between the Sievrant server and the persistent storage (vector indexes, disk). We assume the storage layer is trusted and protected by OS-level access controls.
-3. **Server to LLM**: The boundary between the Sievrant server and external LLM APIs (e.g., OpenAI, Anthropic). We assume the LLM provider is a trusted third-party, but we do not blindly trust the generated output to be safe for execution (e.g. XSS if rendered).
+### Key Handling
 
-### Key Threats Mitigated
+-   **Secret Storage**: Do NOT store bare API keys in source control or plain text configuration files. Use environment variables (e.g., `.env`) or a secrets manager like AWS Secrets Manager, HashiCorp Vault, or Doppler.
+-   **Docker Compose**: When using `docker-compose`, inject secrets at runtime or mount them securely as environment variables rather than hardcoding them in the `docker-compose.yml`.
 
-* **Prompt Injection**: LLMs are susceptible to prompt injection. Sievrant mitigates this by strictly separating the retrieved evidence from the system prompt, and escaping user queries. However, users should remain vigilant about downstream usage of generated answers.
-* **Data Exfiltration**: The conformal gate ensures that only relevant, high-quality chunks are passed to the LLM. The ACL system ensures that users can only retrieve chunks they are authorized to access, preventing cross-tenant data leakage.
-* **Denial of Service**: Expensive vector searches are bounded by strict `search_limit` defaults and token budgets to prevent resource exhaustion attacks.
+## Reporting a Vulnerability
 
-### Remaining Risks
+If you discover a security vulnerability within Sievrant, please do not disclose it publicly. Instead, send an email to the maintainers (or open a confidential GitHub Security Advisory if available on the repository).
 
-* **LLM Hallucinations**: While reciprocal rank fusion and conformal prediction reduce hallucinations by ensuring high-quality evidence, no RAG system can completely eliminate the risk of an LLM generating false information.
-* **Malicious Ingestion**: If an attacker can ingest maliciously crafted documents, they could attempt to influence the retrieval results (e.g., data poisoning). Input validation is performed during ingestion, but administrators should restrict ingestion access to trusted parties.
+We will review your report and respond with an initial assessment within 48 hours. Please provide the following details:
+- A description of the vulnerability and its impact.
+- Steps to reproduce the issue.
+- Potential mitigation or suggestions (optional).
