@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+**Security & Documentation**
+- `SECURITY.md`: Created threat model and security policy.
+- `docs/guides/docker-compose.md`: Added guidance on secrets management.
+- `README.md`: Added link to `SECURITY.md`.
+
 **Core Engine**
 - `sievrant-server`: Refactored `rest.rs` to extract DTOs into `dto.rs`.
 - `sievrant-orchestrator`: Refactored `pipeline.rs` to extract functional stages into `stages.rs`.
