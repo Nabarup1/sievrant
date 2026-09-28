@@ -53,7 +53,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 opentelemetry = "0.32"
 opentelemetry-otlp = "0.27"
-opentelemetry_sdk = "0.27"
+opentelemetry_sdk = "0.33"
 
 # Search and indexing
 tantivy = "0.22"
