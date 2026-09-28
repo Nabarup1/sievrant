@@ -1,5 +1,5 @@
 beir>=2.0.0
-sentence-transformers>=3.0.0
+sentence-transformers>=6.1.0
 faiss-cpu>=1.8.0
 datasets>=2.20.0
 torch>=2.14.0
