@@ -54,4 +54,4 @@ mapie>=0.9.0
 click>=8.1.0
 
 # YAML config parsing
-pyyaml>=6.0.0
+pyyaml>=6.0.3
