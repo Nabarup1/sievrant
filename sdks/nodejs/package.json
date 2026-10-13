@@ -68,7 +68,7 @@
   "devDependencies": {
     "@napi-rs/cli": "^3.9.0",
     "@types/node": "^26.5.1",
-    "msw": "^2.0.0",
+    "msw": "^3.0.3",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^5.0.1"
