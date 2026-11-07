@@ -56,7 +56,7 @@ opentelemetry-otlp = "0.27"
 opentelemetry_sdk = "0.27"
 
 # Search and indexing
-tantivy = "0.22"
+tantivy = "0.27"
 qdrant-client = "1"
 
 # Graph
