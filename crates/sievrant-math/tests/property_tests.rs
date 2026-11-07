@@ -1,34 +1,10 @@
 use proptest::prelude::*;
-use sievrant_core::types::{
-    ChunkMetadata, QueryTaxonomy, RankedCandidate, RerankedCandidate, RetrieverType,
-};
+use sievrant_core::types::{ChunkMetadata, RankedCandidate, RerankedCandidate, RetrieverType};
 use sievrant_math::{
-    conformal::{compute_threshold, CalibrationEntry, CalibrationScore, CalibrationSet},
+    conformal::{conformal_threshold, empirical_coverage},
     rrf::reciprocal_rank_fusion,
     submodular::submodular_select,
 };
-
-fn make_calibration_set(id: &str, scores: &[f64]) -> CalibrationSet {
-    let entry = CalibrationEntry {
-        query: "test query".into(),
-        taxonomy: QueryTaxonomy::Factoid,
-        relevant_chunk_ids: vec![],
-        scores: scores
-            .iter()
-            .enumerate()
-            .map(|(i, &s)| CalibrationScore {
-                chunk_id: format!("c{i}"),
-                nonconformity_score: s,
-                is_relevant: true,
-            })
-            .collect(),
-    };
-    CalibrationSet {
-        id: id.to_string(),
-        entries: vec![entry],
-        created_at: chrono::Utc::now(),
-    }
-}
 
 fn gen_candidates() -> impl Strategy<Value = Vec<RankedCandidate>> {
     prop::collection::vec(
@@ -134,10 +110,8 @@ proptest! {
         scores in prop::collection::vec(0.0f64..2.0f64, 10..100)
     ) {
         // For two coverage targets where A < B, Threshold(A) <= Threshold(B)
-        let cal = make_calibration_set("prop", &scores);
-        let t_90 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.90).unwrap();
-        let t_95 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95).unwrap();
-        let t_99 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.99).unwrap();
+        let t = |c| conformal_threshold(&scores, c).tau().unwrap_or(f64::INFINITY);
+        let (t_90, t_95, t_99) = (t(0.90), t(0.95), t(0.99));
 
         prop_assert!(t_90 <= t_95, "Threshold not monotonic: t90={} > t95={}", t_90, t_95);
         prop_assert!(t_95 <= t_99, "Threshold not monotonic: t95={} > t99={}", t_95, t_99);
@@ -196,14 +170,14 @@ fn correctness_conformal_coverage_audit() {
     // Uniformly distributed scores between 0 and 1
     let cal_scores: Vec<f64> = (1..=n).map(|i| i as f64 / n as f64).collect();
 
-    let cal = make_calibration_set("test", &cal_scores);
     let target_coverage = 0.95;
-    let threshold = compute_threshold(&cal, &QueryTaxonomy::Factoid, target_coverage).unwrap();
+    let threshold = conformal_threshold(&cal_scores, target_coverage)
+        .tau()
+        .unwrap();
 
     // Evaluate coverage on the same set (in practice this would be a holdout set,
     // but exchangeability guarantees hold in expectation)
-    let covered_count = cal_scores.iter().filter(|&&s| s <= threshold).count();
-    let empirical = covered_count as f64 / n as f64;
+    let empirical = empirical_coverage(&cal_scores, threshold).unwrap();
 
     // It should be exactly 95% (950 / 1000) based on the ceiling formula
     assert!(

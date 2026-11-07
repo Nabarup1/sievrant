@@ -185,6 +185,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Create CI .env (random key, offline providers)
+        run: |
+          {
+            echo "SIEVRANT_API_KEYS=ci:$(openssl rand -hex 24)"
+            echo "SIEVRANT_LLM_PROVIDER=none"
+            echo "SIEVRANT_EMBEDDING_PROVIDER=local"
+            echo "SIEVRANT_RERANKER_PROVIDER=embedding"
+          } > .env
+
       - name: Start services
         run: docker compose -f docker-compose.yml up -d
 

@@ -3,15 +3,21 @@ use serde::{Deserialize, Serialize};
 
 use sievrant_core::error::{LlmError, Result};
 
+use crate::client::send_with_retry;
 use crate::provider::{FinishReason, LlmProvider, LlmRequest, LlmResponse, Role, TokenUsage};
 
-const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com/v1beta/models";
+pub const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com/v1beta";
 
 /// Native Gemini generateContent API adapter.
+///
+/// The key travels in the `x-goog-api-key` header, never the URL, so it
+/// cannot leak through transport error messages or access logs.
 pub struct GeminiNative {
     client: reqwest::Client,
     api_key: String,
     model: String,
+    base_url: String,
+    max_retries: u32,
 }
 
 impl GeminiNative {
@@ -20,7 +26,19 @@ impl GeminiNative {
             client: reqwest::Client::new(),
             api_key: api_key.to_string(),
             model: model.to_string(),
+            base_url: GEMINI_API_BASE.to_string(),
+            max_retries: 3,
         }
+    }
+
+    pub fn with_base_url(mut self, base_url: &str) -> Self {
+        self.base_url = base_url.trim_end_matches('/').to_string();
+        self
+    }
+
+    pub fn with_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
+        self
     }
 }
 
@@ -90,10 +108,7 @@ struct GeminiUsage {
 #[async_trait]
 impl LlmProvider for GeminiNative {
     async fn complete(&self, req: LlmRequest) -> Result<LlmResponse> {
-        let url = format!(
-            "{}/{}:generateContent?key={}",
-            GEMINI_API_BASE, self.model, self.api_key
-        );
+        let url = format!("{}/models/{}:generateContent", self.base_url, self.model);
 
         let contents: Vec<GeminiContent> = req
             .messages
@@ -124,25 +139,13 @@ impl LlmProvider for GeminiNative {
             },
         };
 
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| LlmError::Http(e.to_string()))?;
-
-        let status = response.status();
-        if !status.is_success() {
-            let body_text = response.text().await.unwrap_or_default();
-            return Err(LlmError::ApiError {
-                provider: "gemini".into(),
-                status: status.as_u16(),
-                body: body_text,
-            }
-            .into());
-        }
+        let response = send_with_retry("gemini", self.max_retries, || {
+            self.client
+                .post(&url)
+                .header("x-goog-api-key", &self.api_key)
+                .json(&body)
+        })
+        .await?;
 
         let parsed: GeminiResponse = response.json().await.map_err(|e| LlmError::ParseError {
             provider: "gemini".into(),
@@ -170,7 +173,9 @@ impl LlmProvider for GeminiNative {
         let finish_reason = match candidate.finish_reason.as_deref() {
             Some("STOP") => FinishReason::Stop,
             Some("MAX_TOKENS") => FinishReason::Length,
-            Some("SAFETY") => FinishReason::ContentFilter,
+            Some("SAFETY") | Some("PROHIBITED_CONTENT") | Some("BLOCKLIST") => {
+                FinishReason::ContentFilter
+            }
             _ => FinishReason::Unknown,
         };
 

@@ -119,6 +119,23 @@ pub struct AuditBlock {
     /// SHA-256 of (query_id || query_text || evidence_ids || answer || model || timestamp).
     /// Tamper-evident hash for audit log integrity verification.
     pub session_hash: String,
+
+    /// Reranker backend that produced the scores the gate used.
+    #[serde(default)]
+    pub reranker: Option<String>,
+
+    /// Embedding model used for the vector index.
+    #[serde(default)]
+    pub embedding_model: Option<String>,
+
+    /// Hash of every setting that affects candidate scores. Calibration is
+    /// only valid for the fingerprint it was computed with.
+    #[serde(default)]
+    pub pipeline_fingerprint: Option<String>,
+
+    /// Non-fatal problems during this request (failed index, reranker fallback).
+    #[serde(default)]
+    pub warnings: Vec<String>,
 }
 
 impl Default for AuditBlock {
@@ -129,10 +146,116 @@ impl Default for AuditBlock {
             total_candidates_before_rerank: 0,
             total_candidates_after_rerank: 0,
             total_candidates_after_conformal: 0,
-            calibration_set_id: "default".into(),
+            calibration_set_id: "none".into(),
             session_hash: String::new(),
+            reranker: None,
+            embedding_model: None,
+            pipeline_fingerprint: None,
+            warnings: Vec::new(),
         }
     }
+}
+
+/// Whether the statistical coverage guarantee applies to a response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GuaranteeStatus {
+    /// Calibrated for this pipeline; the guarantee applies.
+    Calibrated,
+    /// No calibration set exists for this corpus.
+    Uncalibrated,
+    /// Calibration exists but has too few examples for the requested coverage.
+    InsufficientData,
+    /// The retriever misses relevant evidence too often to reach the target.
+    Unachievable,
+    /// The pipeline or corpus changed since calibration; recalibrate.
+    Stale,
+    /// A pipeline component failed for this request (e.g. reranker fallback).
+    Degraded,
+}
+
+/// Where the calibration labels came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CalibrationSource {
+    /// Human-labelled (query, relevant documents) pairs.
+    Labeled,
+    /// Questions generated from the corpus by an LLM. Assumes real traffic
+    /// resembles the generated questions.
+    Synthetic,
+    /// Labels collected through the feedback API.
+    Feedback,
+}
+
+/// Observed coverage from user feedback, with a 95% Wilson interval.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObservedCoverage {
+    pub rate: f64,
+    pub observations: usize,
+    pub lower_95: f64,
+    pub upper_95: f64,
+    /// True when the interval lies entirely below the target minus tolerance.
+    pub drift_alert: bool,
+}
+
+/// Machine- and human-readable statement of what this response guarantees.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuaranteeInfo {
+    pub status: GuaranteeStatus,
+    /// Plain-language description of what holds (or why nothing does).
+    pub statement: String,
+    pub requested_coverage: f64,
+    pub calibration_set_id: Option<String>,
+    pub calibration_source: Option<CalibrationSource>,
+    pub calibration_size: Option<usize>,
+    /// Nonconformity threshold applied by the gate.
+    pub threshold: Option<f64>,
+    /// Candidates that passed the gate, before token-budget selection.
+    pub conformal_set_size: usize,
+    /// True when the token budget dropped members of the conformal set. The
+    /// guarantee covers the full set; returned evidence is a subset.
+    pub budget_truncated: bool,
+    /// Highest coverage this calibration set supports, when the target is unachievable.
+    pub max_achievable_coverage: Option<f64>,
+    pub observed: Option<ObservedCoverage>,
+}
+
+impl GuaranteeInfo {
+    pub fn none(status: GuaranteeStatus, requested_coverage: f64, statement: &str) -> Self {
+        Self {
+            status,
+            statement: statement.to_string(),
+            requested_coverage,
+            calibration_set_id: None,
+            calibration_source: None,
+            calibration_size: None,
+            threshold: None,
+            conformal_set_size: 0,
+            budget_truncated: false,
+            max_achievable_coverage: None,
+            observed: None,
+        }
+    }
+}
+
+/// Signed retrieval receipt. `payload` is the exact JSON string that was
+/// signed, so any language can verify it without canonicalisation rules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Receipt {
+    /// Always "ed25519".
+    pub alg: String,
+    /// First 16 hex chars of SHA-256(public key).
+    pub key_id: String,
+    pub payload: String,
+    /// Base64 signature over `payload` bytes.
+    pub signature: String,
+}
+
+/// Version of the Evidence Packet wire format.
+pub const EVIDENCE_PACKET_SCHEMA_VERSION: &str = "1.0";
+
+fn default_schema_version() -> String {
+    EVIDENCE_PACKET_SCHEMA_VERSION.to_string()
 }
 
 /// A single piece of retrieved evidence with full provenance, scoring, and access metadata.
@@ -201,6 +324,10 @@ pub struct EvidenceChunk {
 /// See PRD.md Section 4 for the full field justification table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvidencePacket {
+    /// Wire-format version. Additive changes keep "1.x"; breaking changes bump the major.
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+
     /// Unique ID for this retrieval request. Ties together logs, traces, and audit records.
     pub query_id: QueryId,
 
@@ -214,11 +341,14 @@ pub struct EvidencePacket {
     /// present raw evidence for human review.
     pub decision: Decision,
 
-    /// Nominal conformal coverage target configured for this call (e.g. 0.95).
-    pub coverage_guarantee: f64,
+    /// Coverage level guaranteed for this response, e.g. 0.95. `None` whenever
+    /// the guarantee does not apply; see `guarantee.status` for why.
+    pub coverage_guarantee: Option<f64>,
 
-    /// Empirical coverage rate observed over the last 30 days for this corpus and calibration set.
-    /// None until the monitoring window has accumulated enough observations.
+    /// Details of the guarantee: status, threshold, calibration provenance.
+    pub guarantee: GuaranteeInfo,
+
+    /// Observed coverage over the last 30 days from feedback, if any.
     /// ML engineers use this to verify the guarantee is actually holding.
     pub empirical_coverage_last_30d: Option<f64>,
 
@@ -240,6 +370,11 @@ pub struct EvidencePacket {
     /// Estimated USD cost for this retrieval (embedding, reranker API, LLM tokens).
     /// None when cost tracking is disabled or a local model is used.
     pub cost_usd: Option<f64>,
+
+    /// Signed receipt binding query, evidence, answer and guarantee. Present
+    /// when a signing key is configured.
+    #[serde(default)]
+    pub receipt: Option<Receipt>,
 }
 
 /// Metadata about a document corpus stored on disk and returned by corpus_stats().
@@ -323,6 +458,10 @@ pub struct RetrievalConfig {
     pub rerank_top_n: usize,
     /// RRF constant k. 60 is the published default from Cormack et al. 2009.
     pub rrf_k: usize,
+    /// ACL groups the caller is allowed to read. `None` or empty means `["public"]`.
+    pub acl_groups: Option<Vec<String>>,
+    /// Generate an LLM answer. `false` returns evidence only.
+    pub generate_answer: bool,
 }
 
 impl Default for RetrievalConfig {
@@ -333,8 +472,10 @@ impl Default for RetrievalConfig {
             route: RouteStrategy::Auto,
             user_id: None,
             skip_cache: false,
-            rerank_top_n: 100,
+            rerank_top_n: 50,
             rrf_k: 60,
+            acl_groups: None,
+            generate_answer: true,
         }
     }
 }
@@ -405,11 +546,13 @@ mod tests {
 
     fn build_full_packet() -> EvidencePacket {
         EvidencePacket {
+            schema_version: EVIDENCE_PACKET_SCHEMA_VERSION.into(),
             query_id: QueryId("test-id".into()),
             trace_id: Some("trace-abc".into()),
             answer: Some("The lease term is 60 months.".into()),
             decision: Decision::Answered,
-            coverage_guarantee: 0.95,
+            coverage_guarantee: Some(0.95),
+            guarantee: GuaranteeInfo::none(GuaranteeStatus::Calibrated, 0.95, "test"),
             empirical_coverage_last_30d: Some(0.947),
             route: Route::Standard,
             cache_hit: false,
@@ -444,9 +587,11 @@ mod tests {
                 total_candidates_after_conformal: 8,
                 calibration_set_id: "cal_v1".into(),
                 session_hash: "sha256:deadbeef".into(),
+                ..Default::default()
             },
             latency_ms: 214,
             cost_usd: Some(0.0021),
+            receipt: None,
         }
     }
 
@@ -462,6 +607,17 @@ mod tests {
             packet.evidence[0].nonconformity_score,
             restored.evidence[0].nonconformity_score
         );
+    }
+
+    #[test]
+    fn packets_without_new_fields_still_deserialize() {
+        let mut v = serde_json::to_value(build_full_packet()).unwrap();
+        let obj = v.as_object_mut().unwrap();
+        obj.remove("schema_version");
+        obj.remove("receipt");
+        let p: EvidencePacket = serde_json::from_value(v).unwrap();
+        assert_eq!(p.schema_version, EVIDENCE_PACKET_SCHEMA_VERSION);
+        assert!(p.receipt.is_none());
     }
 
     #[test]
@@ -488,7 +644,8 @@ mod tests {
         assert!((cfg.coverage - 0.95).abs() < f64::EPSILON);
         assert_eq!(cfg.token_budget, 4000);
         assert_eq!(cfg.rrf_k, 60);
-        assert_eq!(cfg.rerank_top_n, 100);
+        assert_eq!(cfg.rerank_top_n, 50);
+        assert!(cfg.generate_answer);
         assert!(!cfg.skip_cache);
     }
 }

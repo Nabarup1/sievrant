@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use sievrant_core::error::{ConfigError, Result, SievrantError};
 
-use crate::{anthropic::AnthropicNative, gemini::GeminiNative, openai::OpenAiCompatible};
-
 /// Contract for all LLM providers. Implementations are cheaply cloneable
 /// via Arc so they can be shared across tokio tasks.
 #[async_trait]
@@ -70,38 +68,43 @@ pub struct LlmConfig {
 }
 
 /// Instantiate an LLM provider from configuration.
+///
+/// Thin wrapper over [`crate::registry::build_llm`] kept for API compatibility;
+/// accepts every provider id in [`crate::registry::PROVIDERS`].
 pub fn create_provider(config: &LlmConfig) -> Result<Box<dyn LlmProvider>> {
-    match config.provider.as_str() {
-        "openai" => Ok(Box::new(OpenAiCompatible::openai(
-            &config.api_key,
-            &config.model,
-        ))),
-        "anthropic" => Ok(Box::new(AnthropicNative::new(
-            &config.api_key,
-            &config.model,
-        ))),
-        "gemini" => Ok(Box::new(GeminiNative::new(&config.api_key, &config.model))),
-        "deepseek" => Ok(Box::new(OpenAiCompatible::deepseek(
-            &config.api_key,
-            &config.model,
-        ))),
-        "custom" => {
-            let base_url = config.base_url.as_deref().ok_or_else(|| {
-                SievrantError::Config(ConfigError::MissingField {
-                    field: "llm.base_url".into(),
-                })
-            })?;
-            Ok(Box::new(OpenAiCompatible::custom(
-                base_url,
-                &config.api_key,
-                &config.model,
-                config.context_window.unwrap_or(8192),
-            )))
-        }
-        other => Err(SievrantError::Config(ConfigError::InvalidValue {
+    let settings = crate::registry::LlmSettings {
+        provider: config.provider.clone(),
+        model: Some(config.model.clone()),
+        api_key: Some(config.api_key.clone()),
+        base_url: config.base_url.clone(),
+        max_retries: 3,
+        anthropic_fallbacks: true,
+        ..Default::default()
+    };
+    match crate::registry::build_llm(&settings)? {
+        Some(p) => Ok(Box::new(ArcProvider(p))),
+        None => Err(SievrantError::Config(ConfigError::InvalidValue {
             field: "llm.provider".into(),
-            value: other.into(),
+            value: config.provider.clone(),
         })),
+    }
+}
+
+struct ArcProvider(std::sync::Arc<dyn LlmProvider>);
+
+#[async_trait]
+impl LlmProvider for ArcProvider {
+    async fn complete(&self, req: LlmRequest) -> Result<LlmResponse> {
+        self.0.complete(req).await
+    }
+    fn supports_vision(&self) -> bool {
+        self.0.supports_vision()
+    }
+    fn context_window(&self) -> usize {
+        self.0.context_window()
+    }
+    fn model_id(&self) -> &str {
+        self.0.model_id()
     }
 }
 

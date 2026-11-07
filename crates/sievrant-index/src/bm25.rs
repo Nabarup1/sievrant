@@ -236,7 +236,7 @@ impl RetrievalIndex for Bm25Index {
     }
 
     async fn insert(&self, chunks: &[IndexChunk]) -> Result<()> {
-        let writer = self.writer.write().unwrap();
+        let mut writer = self.writer.write().unwrap();
 
         for chunk in chunks {
             let mut doc = TantivyDocument::default();
@@ -263,15 +263,22 @@ impl RetrievalIndex for Bm25Index {
                 .map_err(|e| IndexError::Bm25(e.to_string()))?;
         }
 
+        // Commit so the batch is durable and visible to new searchers.
+        writer
+            .commit()
+            .map_err(|e| IndexError::Bm25(e.to_string()))?;
         Ok(())
     }
 
     async fn delete(&self, chunk_ids: &[String]) -> Result<()> {
-        let writer = self.writer.write().unwrap();
+        let mut writer = self.writer.write().unwrap();
         for chunk_id in chunk_ids {
             let term = Term::from_field_text(self.fields.chunk_id, chunk_id);
             writer.delete_term(term);
         }
+        writer
+            .commit()
+            .map_err(|e| IndexError::Bm25(e.to_string()))?;
         Ok(())
     }
 

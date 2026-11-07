@@ -20,14 +20,18 @@ pub struct QueryProcessingConfig {
     pub max_sub_queries: usize,
     /// Enables HyDE (Hypothetical Document Embeddings). Increases latency.
     pub hyde_enabled: bool,
+    /// LLM query expansion on Standard/Slow routes. When off (the default)
+    /// every query takes the deterministic single-embedding path.
+    pub expansion_enabled: bool,
 }
 
 impl Default for QueryProcessingConfig {
     fn default() -> Self {
         Self {
-            max_expansion_tokens: 256,
+            max_expansion_tokens: 1024,
             max_sub_queries: 5,
             hyde_enabled: false,
+            expansion_enabled: false,
         }
     }
 }
@@ -46,14 +50,15 @@ pub struct ProcessedQuery {
 }
 
 pub struct QueryProcessor {
-    pub llm: Arc<dyn LlmProvider>,
+    /// Optional: without an LLM, every query takes the Fast path.
+    pub llm: Option<Arc<dyn LlmProvider>>,
     pub embedding_provider: Arc<dyn EmbeddingProvider>,
     pub config: QueryProcessingConfig,
 }
 
 impl QueryProcessor {
     pub fn new(
-        llm: Arc<dyn LlmProvider>,
+        llm: Option<Arc<dyn LlmProvider>>,
         embedding_provider: Arc<dyn EmbeddingProvider>,
         config: QueryProcessingConfig,
     ) -> Self {
@@ -70,6 +75,12 @@ impl QueryProcessor {
         }
 
         let entities = extract_entities(query);
+
+        let route = if self.config.expansion_enabled && self.llm.is_some() {
+            route
+        } else {
+            &Route::Fast
+        };
 
         match route {
             Route::Fast | Route::Cached => {
@@ -131,6 +142,17 @@ impl QueryProcessor {
         }
     }
 
+    fn llm(&self) -> Result<&Arc<dyn LlmProvider>> {
+        self.llm
+            .as_ref()
+            .ok_or_else(|| QueryError::Expansion("no LLM configured".into()).into())
+    }
+
+    /// Whether this processor will actually expand queries.
+    pub fn expands(&self) -> bool {
+        self.config.expansion_enabled && self.llm.is_some()
+    }
+
     async fn expand_query(&self, query: &str) -> Result<String> {
         let prompt = format!(
             "Given the following query, generate 2-3 alternative phrasings and relevant synonyms.\n\
@@ -150,7 +172,7 @@ impl QueryProcessor {
         };
 
         let response = self
-            .llm
+            .llm()?
             .complete(req)
             .await
             .map_err(|e| QueryError::Expansion(e.to_string()))?;
@@ -179,7 +201,7 @@ impl QueryProcessor {
         };
 
         let response = self
-            .llm
+            .llm()?
             .complete(req)
             .await
             .map_err(|e| QueryError::Embedding(e.to_string()))?;
@@ -209,7 +231,7 @@ impl QueryProcessor {
         };
 
         let response = self
-            .llm
+            .llm()?
             .complete(req)
             .await
             .map_err(|e| QueryError::Decomposition(e.to_string()))?;

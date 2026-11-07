@@ -17,6 +17,8 @@ chrono = { workspace = true }
 ort = { workspace = true }
 sievrant-core = { workspace = true }
 sievrant-math = { workspace = true }
+sievrant-llm = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

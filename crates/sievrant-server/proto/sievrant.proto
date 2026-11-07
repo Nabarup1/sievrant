@@ -4,6 +4,7 @@ package sievrant.v1;
 service SievrantService {
   rpc Retrieve(RetrieveRequest) returns (RetrieveResponse);
   rpc Ingest(IngestRequest) returns (IngestResponse);
+  // Not implemented yet: returns UNIMPLEMENTED.
   rpc QueryStream(QueryRequest) returns (stream QueryResponsePart);
 }
 
@@ -21,11 +22,14 @@ message RetrieveResponse {
   string decision = 2;
   optional string answer = 3;
   uint32 evidence_count = 4;
-  double coverage_guarantee = 5;
+  // Unset when no guarantee applies; see guarantee_status.
+  optional double coverage_guarantee = 5;
   uint64 latency_ms = 6;
   bool cache_hit = 7;
   string route = 8;
   repeated EvidenceChunk evidence = 9;
+  // calibrated, uncalibrated, insufficient_data, unachievable, stale, degraded.
+  string guarantee_status = 10;
 }
 
 message EvidenceChunk {
@@ -44,6 +48,7 @@ message IngestDocument {
   string id = 1;
   string content = 2;
   string metadata_json = 3;
+  repeated string acl_groups = 4;
 }
 
 message IngestResponse {

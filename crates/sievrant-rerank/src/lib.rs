@@ -1,5 +1,15 @@
+//! Reranking stage.
+//!
+//! Production backends live in [`providers`]. The `colbert` and
+//! `cross_encoder` ONNX modules are experimental: they still use a
+//! placeholder tokenizer, so their scores are not meaningful and they are not
+//! selectable through configuration.
+
 pub mod colbert;
 pub mod cross_encoder;
+pub mod providers;
+
+pub use providers::{EmbeddingReranker, HttpReranker, LlmReranker, NoReranker};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -149,35 +159,56 @@ impl Reranker for ApiReranker {
     }
 }
 
+/// Output of the reranking stage.
+#[derive(Debug)]
+pub struct Reranked {
+    /// Candidates sorted by rerank score, descending.
+    pub candidates: Vec<RerankedCandidate>,
+    /// True when the configured reranker failed and fusion scores were used
+    /// instead. Scores are then on a different scale from calibration, so the
+    /// conformal gate must not claim a guarantee for this query.
+    pub degraded: bool,
+}
+
 /// Take the top N fused candidates, rescore each (query, chunk) pair via the
 /// reranker, and return results sorted by rerank score descending.
 ///
-/// On reranker failure the function falls back to returning candidates sorted
-/// by their original fused RRF score so the pipeline degrades gracefully.
+/// On reranker failure the candidates keep their fused RRF score so the
+/// pipeline degrades gracefully, and [`Reranked::degraded`] is set. The
+/// [`NoReranker`] backend uses fusion scores by design and is not degraded.
 pub async fn rerank_candidates(
     reranker: &dyn Reranker,
     query: &str,
     candidates: Vec<FusedCandidate>,
     top_n: usize,
-) -> Result<Vec<RerankedCandidate>> {
+) -> Result<Reranked> {
     let top_candidates: Vec<FusedCandidate> = candidates.into_iter().take(top_n).collect();
     let texts: Vec<&str> = top_candidates.iter().map(|c| c.text.as_str()).collect();
 
     let scores = match reranker.rerank(query, &texts).await {
-        Ok(s) => s,
-        Err(_) => {
-            // Graceful degradation: propagate fused scores as the rerank score
-            // so the rest of the pipeline can continue unmodified.
-            return Ok(top_candidates
-                .into_iter()
-                .map(|c| RerankedCandidate {
-                    chunk_id: c.chunk_id,
-                    fused_score: c.fused_score,
-                    rerank_score: c.fused_score,
-                    text: c.text,
-                    metadata: c.metadata,
-                })
-                .collect());
+        Ok(s) if s.len() == top_candidates.len() => s,
+        outcome => {
+            let degraded = reranker.name() != "none";
+            if degraded {
+                tracing::warn!(
+                    reranker = reranker.name(),
+                    error = ?outcome.err(),
+                    "reranker failed; falling back to fusion scores"
+                );
+            }
+            return Ok(Reranked {
+                candidates: top_candidates
+                    .into_iter()
+                    .map(|c| RerankedCandidate {
+                        chunk_id: c.chunk_id,
+                        fused_score: c.fused_score,
+                        rerank_score: c.fused_score,
+                        text: c.text,
+                        metadata: c.metadata,
+                    })
+                    .collect(),
+                degraded,
+            });
         }
     };
 
@@ -199,12 +230,14 @@ pub async fn rerank_candidates(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    Ok(reranked)
+    Ok(Reranked {
+        candidates: reranked,
+        degraded: false,
+    })
 }
 
-/// A mock reranker used in tests and benchmarks that returns a deterministic
-/// score based on how many query terms appear in the document text.
-/// Does not require any model files to be present.
+/// Test-only reranker: scores by the number of query terms found in the
+/// document. Not selectable through configuration.
 pub struct TermOverlapReranker;
 
 #[async_trait]
@@ -266,7 +299,8 @@ mod tests {
 
         let result = rerank_candidates(&reranker, "lease term duration", candidates, 10)
             .await
-            .unwrap();
+            .unwrap()
+            .candidates;
 
         // c2 matches "lease", "term", "duration" so should rank first after reranking
         assert_eq!(result[0].chunk_id, "c2", "reranking should promote c2");
@@ -281,7 +315,8 @@ mod tests {
 
         let result = rerank_candidates(&reranker, "query", candidates, 5)
             .await
-            .unwrap();
+            .unwrap()
+            .candidates;
 
         assert_eq!(result.len(), 5);
     }
@@ -306,12 +341,24 @@ mod tests {
             make_fused("c2", 0.6, "text b"),
         ];
 
-        let result = rerank_candidates(&AlwaysFailsReranker, "query", candidates, 10)
+        let outcome = rerank_candidates(&AlwaysFailsReranker, "query", candidates, 10)
             .await
             .unwrap();
 
-        // Fallback: fused scores used as rerank scores, order preserved
+        // Fallback: fused scores used as rerank scores, order preserved,
+        // and the outcome is flagged so the gate withholds its guarantee.
+        assert!(outcome.degraded);
+        let result = outcome.candidates;
         assert_eq!(result.len(), 2);
         assert!((result[0].rerank_score - 0.8).abs() < 1e-10);
+    }
+
+    #[tokio::test]
+    async fn no_reranker_is_not_degraded() {
+        let outcome = rerank_candidates(&NoReranker, "q", vec![make_fused("c1", 0.5, "t")], 10)
+            .await
+            .unwrap();
+        assert!(!outcome.degraded);
+        assert_eq!(outcome.candidates[0].rerank_score, 0.5);
     }
 }

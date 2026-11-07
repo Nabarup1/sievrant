@@ -273,30 +273,30 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sievrant_core::types::{AuditBlock, Decision, RetrievalStagesMs};
+    use sievrant_core::types::{
+        AuditBlock, Decision, GuaranteeInfo, GuaranteeStatus, EVIDENCE_PACKET_SCHEMA_VERSION,
+    };
 
     fn dummy_packet(answer: &str) -> EvidencePacket {
         EvidencePacket {
+            schema_version: EVIDENCE_PACKET_SCHEMA_VERSION.into(),
             query_id: sievrant_core::types::QueryId::new(),
             trace_id: None,
             answer: Some(answer.to_string()),
             decision: Decision::Answered,
-            coverage_guarantee: 0.95,
+            coverage_guarantee: None,
+            guarantee: GuaranteeInfo::none(GuaranteeStatus::Uncalibrated, 0.95, "test"),
             empirical_coverage_last_30d: None,
             route: Route::Standard,
             cache_hit: false,
             evidence: vec![],
             audit: AuditBlock {
-                model_version: None,
-                retrieval_stages_ms: RetrievalStagesMs::default(),
-                total_candidates_before_rerank: 0,
-                total_candidates_after_rerank: 0,
-                total_candidates_after_conformal: 0,
-                calibration_set_id: "default".into(),
                 session_hash: "sha256:test".into(),
+                ..Default::default()
             },
             latency_ms: 42,
             cost_usd: None,
+            receipt: None,
         }
     }
 

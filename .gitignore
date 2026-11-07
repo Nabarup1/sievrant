@@ -12,8 +12,10 @@
 *~
 .DS_Store
 
-# Environment and secrets
+# Environment and secrets (keep the template)
 .env
+.env.*
+!.env.example
 *.pem
 *.key
 
@@ -67,3 +69,13 @@ sdks/python/.pytest_cache/
 sdks/python/.mypy_cache/
 sdks/python/.ruff_cache/
 
+
+
+# Test / eval caches
+.pytest_cache/
+.coverage
+.deepeval/
+
+# Compiled native addons and local tool binaries
+*.node
+/oha

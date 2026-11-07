@@ -1,12 +1,12 @@
 use async_trait::async_trait;
-use sievrant_core::{
-    error::Result,
-    types::{EvidencePacket, QueryTaxonomy},
-};
-use sievrant_llm::{FinishReason, LlmProvider, LlmRequest, LlmResponse, TokenUsage};
-use sievrant_orchestrator::pipeline::{CalibrationManager, CoverageMonitor, SemanticCache};
+use sievrant_acl::resolver::AclResolver;
+use sievrant_core::{error::Result, types::EvidencePacket};
+use sievrant_orchestrator::pipeline::SemanticCache;
 
+/// Cache disabled. A semantic cache would serve packets computed under an
+/// older calibration, so it stays off until it can key on the calibration set.
 pub struct NoopCache;
+
 #[async_trait]
 impl SemanticCache for NoopCache {
     async fn lookup(
@@ -29,42 +29,12 @@ impl SemanticCache for NoopCache {
     }
 }
 
-pub struct NoopCalibration;
-impl CalibrationManager for NoopCalibration {
-    fn threshold(&self, _corpus: &str, _taxonomy: &QueryTaxonomy) -> f64 {
-        0.5 // Default threshold
-    }
-}
+/// Callers that assert no ACL groups see only `public` documents.
+pub struct PublicAclResolver;
 
-pub struct NoopCoverage;
-impl CoverageMonitor for NoopCoverage {
-    fn record(&self, _corpus: &str, _covered: bool) {}
-    fn empirical_coverage_30d(&self, _corpus: &str) -> Option<f64> {
-        None
-    }
-}
-
-pub struct NoopLlm;
 #[async_trait]
-impl LlmProvider for NoopLlm {
-    async fn complete(&self, _req: LlmRequest) -> sievrant_core::error::Result<LlmResponse> {
-        Ok(LlmResponse {
-            content: "Mock generated answer (LLM disabled)".to_string(),
-            usage: TokenUsage::default(),
-            model: self.model_id().to_string(),
-            finish_reason: FinishReason::Stop,
-        })
-    }
-
-    fn supports_vision(&self) -> bool {
-        false
-    }
-
-    fn model_id(&self) -> &str {
-        "noop-llm"
-    }
-
-    fn context_window(&self) -> usize {
-        128000
+impl AclResolver for PublicAclResolver {
+    async fn resolve(&self, _user_id: Option<&str>, _corpus: &str) -> Result<Vec<String>> {
+        Ok(vec!["public".into()])
     }
 }

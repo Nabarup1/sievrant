@@ -17,3 +17,13 @@ sievrant-query = { workspace = true }
 sievrant-rerank = { workspace = true }
 sievrant-acl = { workspace = true }
 async-trait = { workspace = true }
+sievrant-audit = { workspace = true }
+sievrant-calibration = { workspace = true }
+sievrant-math = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

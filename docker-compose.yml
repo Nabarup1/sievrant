@@ -1,11 +1,7 @@
 services:
-  # Qdrant vector database -- the primary vector storage backend.
-  # Data is persisted to a named volume so it survives container restarts.
+  # Qdrant vector database. Sievrant talks to its gRPC port (6334).
   qdrant:
-    image: qdrant/qdrant:latest
-    ports:
-      - "6333:6333"
-      - "6334:6334"
+    image: qdrant/qdrant:v1.15.4
     volumes:
       - qdrant_storage:/qdrant/storage
     healthcheck:
@@ -14,37 +10,26 @@ services:
       timeout: 5s
       retries: 5
 
-  # Sievrant API server (Rust binary).
-  # Built from a multi-stage Dockerfile that keeps the final image minimal.
+  # Sievrant API server. Put SIEVRANT_API_KEYS and provider keys in .env.
   api:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
-      RUST_LOG: "sievrant=info,tower_http=debug"
-      SIEVRANT_QDRANT_URL: "http://qdrant:6333"
+      SIEVRANT_VECTOR_BACKEND: qdrant
+      QDRANT_URL: http://qdrant:6334
+      SIEVRANT_DATA_DIR: /app/data
+    volumes:
+      - sievrant_data:/app/data
     depends_on:
       qdrant:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-
-  # OpenTelemetry Collector -- receives traces and metrics from the Rust server
-  # and forwards them to any configured backend (Jaeger, Prometheus, Grafana).
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    volumes:
-      - ./otel-collector-config.yml:/etc/otelcol-contrib/config.yaml
-    ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-    depends_on:
-      - api
+    restart: unless-stopped
 
 volumes:
   qdrant_storage:
+  sievrant_data:

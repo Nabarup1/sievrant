@@ -1,440 +1,299 @@
-use chrono::{DateTime, Utc};
+//! Split conformal prediction for retrieval.
+//!
+//! # What is guaranteed
+//!
+//! For each labelled calibration query `i` the pipeline produces a list of
+//! reranked candidates. The query's score is
+//!
+//! ```text
+//! s_i = min over relevant candidates c of  nonconformity(c)
+//! ```
+//!
+//! i.e. the nonconformity of the *best* relevant candidate, or `+inf` when
+//! the retriever surfaced no relevant candidate at all.
+//!
+//! Given `n` such scores and a coverage target `1 - alpha`, the threshold
+//! `tau` is the `ceil((n + 1)(1 - alpha))`-th smallest score. At query time
+//! the conformal evidence set is every candidate with
+//! `nonconformity(c) <= tau`.
+//!
+//! If a new answerable query is exchangeable with the calibration queries
+//! (drawn from the same distribution, served by the same pipeline), then
+//!
+//! ```text
+//! P(conformal set contains at least one relevant candidate) >= 1 - alpha
+//! ```
+//!
+//! A consequence is that the system abstains (returns an empty set) on at
+//! most an `alpha` fraction of answerable queries.
+//!
+//! # What is NOT guaranteed
+//!
+//! - Answer correctness or absence of hallucination. The guarantee is about
+//!   retrieved evidence, not about what an LLM writes from it.
+//! - Abstention on unanswerable queries. That rate is measured, not bounded.
+//! - Anything when the exchangeability assumption fails (traffic drift,
+//!   pipeline changes). Live coverage monitoring exists to detect this.
+//!
+//! When more than an `alpha` fraction of calibration queries have
+//! `s_i = +inf`, the retriever itself misses too often for the target to be
+//! reachable. [`conformal_threshold`] reports this instead of returning a
+//! threshold that would silently fail to deliver the promised coverage.
+
 use serde::{Deserialize, Serialize};
 
-use sievrant_core::{
-    error::{CalibrationError, Result},
-    types::{Decision, QueryTaxonomy, SelectedEvidence},
-};
-
-/// Non-conformity score for a single (query, chunk) pair.
+/// Nonconformity of a single candidate. Lower means more trustworthy.
 ///
-/// Measures how "unusual" or "untrustworthy" a chunk is as evidence for this query.
-/// Lower score = more trustworthy = more likely to be retained by the gate.
+/// Any fixed, deterministic function of the reranker output yields a valid
+/// guarantee; what matters is that calibration and serving use the same one.
+pub fn nonconformity(rerank_score: f64) -> f64 {
+    1.0 - rerank_score
+}
+
+/// Query-level score for one calibration example: the nonconformity of the
+/// best relevant candidate, or `f64::INFINITY` if none was retrieved.
+pub fn query_score<I>(relevant_candidate_nonconformities: I) -> f64
+where
+    I: IntoIterator<Item = f64>,
+{
+    relevant_candidate_nonconformities
+        .into_iter()
+        .fold(f64::INFINITY, f64::min)
+}
+
+/// Outcome of computing a conformal threshold.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum Threshold {
+    /// A finite threshold that delivers the requested coverage.
+    Calibrated { tau: f64 },
+    /// Too few calibration examples for this coverage level. Split conformal
+    /// needs `n >= coverage / (1 - coverage)` (19 for 95%, 99 for 99%).
+    InsufficientData { required: usize, provided: usize },
+    /// The retriever misses relevant evidence too often. `max_coverage` is
+    /// the highest target this calibration set can support.
+    Unachievable { max_coverage: f64 },
+}
+
+impl Threshold {
+    /// The threshold value, if calibrated.
+    pub fn tau(&self) -> Option<f64> {
+        match self {
+            Threshold::Calibrated { tau } => Some(*tau),
+            _ => None,
+        }
+    }
+}
+
+/// Minimum calibration size for a given coverage target.
+pub fn min_examples_for(coverage: f64) -> usize {
+    // Smallest n with ceil((n + 1) * coverage) <= n.
+    let mut n = 1usize;
+    while (((n + 1) as f64) * coverage).ceil() as usize > n {
+        n += 1;
+    }
+    n
+}
+
+/// Compute the split-conformal threshold from query-level scores.
 ///
-/// s(q, c) = 1 - combined_relevance(c)
-///
-/// Weights: rerank 60%, rrf_score (clamped to \[0,1\]) 30%, structural bonus 10%.
-/// These are fixed defaults; a future per-corpus calibration step can tune them.
-pub fn nonconformity_score(rerank_score: f64, rrf_score: f64, structural_bonus: f64) -> f64 {
-    let combined = 0.6 * rerank_score + 0.3 * rrf_score.min(1.0) + 0.1 * structural_bonus;
-    1.0 - combined.clamp(0.0, 1.0)
-}
-
-/// A calibration dataset of (query, relevant_chunk_ids, scored_candidates) triples.
-/// Used to derive a conformal threshold at a given coverage level.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CalibrationSet {
-    pub id: String,
-    pub entries: Vec<CalibrationEntry>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CalibrationEntry {
-    pub query: String,
-    pub taxonomy: QueryTaxonomy,
-    pub relevant_chunk_ids: Vec<String>,
-    /// Populated by running the pipeline against calibration queries.
-    pub scores: Vec<CalibrationScore>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CalibrationScore {
-    pub chunk_id: String,
-    pub nonconformity_score: f64,
-    pub is_relevant: bool,
-}
-
-use std::collections::HashMap;
-
-/// Constant number of quantized score bins (0.0000 to 1.0000).
-/// 10,000 bins provides 0.0001 precision, which is mathematically sufficient for conformal thresholds.
-const BINS: usize = 10_000;
-
-/// State for O(log B) online conformal calibration using a Fenwick Tree (Binary Indexed Tree).
-/// Replaces the $O(N \log N)$ sorting approach, allowing live zero-latency threshold updates
-/// as new user feedback streams into the SaaS platform.
-#[derive(Debug, Clone)]
-pub struct OnlineCalibrationState {
-    trees: HashMap<QueryTaxonomy, Vec<usize>>,
-    total_relevant: HashMap<QueryTaxonomy, usize>,
-}
-
-impl Default for OnlineCalibrationState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl OnlineCalibrationState {
-    pub fn new() -> Self {
-        Self {
-            trees: HashMap::new(),
-            total_relevant: HashMap::new(),
-        }
+/// `scores` need not be sorted. `coverage` must lie in (0, 1).
+pub fn conformal_threshold(scores: &[f64], coverage: f64) -> Threshold {
+    assert!(
+        coverage > 0.0 && coverage < 1.0,
+        "coverage must be in (0, 1), got {coverage}"
+    );
+    let n = scores.len();
+    let required = min_examples_for(coverage);
+    if n < required {
+        return Threshold::InsufficientData {
+            required,
+            provided: n,
+        };
     }
 
-    /// Insert a new calibration score in O(log B) time.
-    pub fn insert_score(&mut self, taxonomy: &QueryTaxonomy, score: f64, is_relevant: bool) {
-        if !is_relevant {
-            return;
-        }
+    let mut sorted: Vec<f64> = scores.to_vec();
+    sorted.sort_by(|a, b| a.total_cmp(b));
 
-        let count = self.total_relevant.entry(taxonomy.clone()).or_insert(0);
-        *count += 1;
+    let k = (((n + 1) as f64) * coverage).ceil() as usize;
+    let tau = sorted[k - 1];
 
-        let tree = self
-            .trees
-            .entry(taxonomy.clone())
-            .or_insert_with(|| vec![0; BINS + 1]);
-
-        let mut idx = (score * BINS as f64).round() as usize;
-        idx = idx.clamp(0, BINS).min(BINS - 1) + 1; // 1-based indexing for Fenwick
-
-        while idx <= BINS {
-            tree[idx] += 1;
-            idx += idx.isolate_lowest_one();
-        }
-    }
-
-    /// Compute the exact non-conformity threshold in O(log B) using binary lifting.
-    pub fn compute_threshold(&self, taxonomy: &QueryTaxonomy, coverage_target: f64) -> Result<f64> {
-        let n = self.total_relevant.get(taxonomy).copied().unwrap_or(0);
-        if n == 0 {
-            return Err(CalibrationError::InsufficientData {
-                min_required: 1,
-                provided: 0,
-            }
-            .into());
-        }
-
-        let target_count = ((n as f64 + 1.0) * coverage_target).ceil() as usize;
-        let target_count = target_count.min(n);
-
-        let tree = self.trees.get(taxonomy).unwrap();
-        let mut idx = 0;
-        let mut sum = 0;
-        let mut bit_mask = 1 << BINS.ilog2();
-
-        while bit_mask > 0 {
-            let next_idx = idx + bit_mask;
-            if next_idx <= BINS && sum + tree[next_idx] < target_count {
-                idx = next_idx;
-                sum += tree[idx];
-            }
-            bit_mask >>= 1;
-        }
-
-        let target_idx = (idx + 1).min(BINS);
-        Ok((target_idx - 1) as f64 / BINS as f64)
-    }
-}
-
-/// Compute the conformal prediction threshold for a given coverage target.
-///
-/// Wraps the batch `CalibrationSet` into the `OnlineCalibrationState` to utilize
-/// the $O(\log B)$ Fenwick Tree binary lifting algorithm.
-pub fn compute_threshold(
-    calibration_set: &CalibrationSet,
-    taxonomy: &QueryTaxonomy,
-    coverage_target: f64,
-) -> Result<f64> {
-    let mut state = OnlineCalibrationState::new();
-    for entry in &calibration_set.entries {
-        for score in &entry.scores {
-            state.insert_score(
-                &entry.taxonomy,
-                score.nonconformity_score,
-                score.is_relevant,
-            );
-        }
-    }
-    state.compute_threshold(taxonomy, coverage_target)
-}
-
-/// Output of the conformal gate.
-pub struct ConformalResult {
-    /// ANSWERED if enough chunks passed the gate; ABSTAINED otherwise.
-    pub decision: Decision,
-    /// Chunks whose non-conformity score is <= threshold.
-    pub evidence: Vec<SelectedEvidence>,
-    /// Chunks that were filtered out, kept for audit records.
-    pub rejected: Vec<SelectedEvidence>,
-    pub threshold: f64,
-}
-
-/// Apply the conformal gate to a set of selected evidence chunks.
-///
-/// Each chunk's `nonconformity_score` is compared to the calibrated threshold.
-/// Chunks above the threshold are rejected. If the number of passing chunks
-/// is below `min_evidence_count` the decision is ABSTAINED.
-pub fn conformal_gate(
-    mut evidence: Vec<SelectedEvidence>,
-    threshold: f64,
-    min_evidence_count: usize,
-) -> ConformalResult {
-    let mut passing: Vec<SelectedEvidence> = Vec::new();
-    let mut rejected: Vec<SelectedEvidence> = Vec::new();
-
-    for chunk in evidence.drain(..) {
-        if chunk.nonconformity_score <= threshold {
-            passing.push(chunk);
-        } else {
-            rejected.push(chunk);
-        }
-    }
-
-    let decision = if passing.len() >= min_evidence_count {
-        Decision::Answered
+    if tau.is_finite() {
+        Threshold::Calibrated { tau }
     } else {
-        Decision::Abstained
-    };
-
-    ConformalResult {
-        decision,
-        evidence: passing,
-        rejected,
-        threshold,
+        let finite = sorted.iter().filter(|s| s.is_finite()).count();
+        // Largest coverage c with ceil((n + 1) c) <= finite.
+        let max_coverage = finite as f64 / (n + 1) as f64;
+        Threshold::Unachievable { max_coverage }
     }
 }
 
-/// Empirical coverage report produced by `verify_coverage`.
-pub struct CoverageReport {
-    pub nominal_coverage: f64,
-    pub empirical_coverage: f64,
-    pub covered_count: usize,
-    pub total_count: usize,
-    pub threshold: f64,
-    /// True when |empirical - nominal| <= tolerance.
-    pub within_tolerance: bool,
+/// Indices of candidates that belong to the conformal set.
+pub fn conformal_set(candidate_nonconformities: &[f64], tau: f64) -> Vec<usize> {
+    candidate_nonconformities
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| **s <= tau)
+        .map(|(i, _)| i)
+        .collect()
 }
 
-/// Verify that the conformal coverage guarantee holds on a held-out test split for a given taxonomy.
-pub fn verify_coverage(
-    calibration_set: &CalibrationSet,
-    test_set: &CalibrationSet,
-    taxonomy: &QueryTaxonomy,
-    coverage_target: f64,
-    tolerance: f64,
-) -> CoverageReport {
-    let threshold = compute_threshold(calibration_set, taxonomy, coverage_target).unwrap_or(1.0);
-
-    let mut covered = 0usize;
-    let mut total = 0usize;
-
-    for entry in &test_set.entries {
-        if &entry.taxonomy != taxonomy {
-            continue;
-        }
-        for score in &entry.scores {
-            if score.is_relevant {
-                total += 1;
-                if score.nonconformity_score <= threshold {
-                    covered += 1;
-                }
-            }
-        }
+/// Empirical coverage of a threshold on held-out query scores.
+/// Returns `None` for an empty slice.
+pub fn empirical_coverage(held_out_scores: &[f64], tau: f64) -> Option<f64> {
+    if held_out_scores.is_empty() {
+        return None;
     }
+    let covered = held_out_scores.iter().filter(|s| **s <= tau).count();
+    Some(covered as f64 / held_out_scores.len() as f64)
+}
 
-    let empirical_coverage = if total > 0 {
-        covered as f64 / total as f64
-    } else {
-        0.0
-    };
-
-    CoverageReport {
-        nominal_coverage: coverage_target,
-        empirical_coverage,
-        covered_count: covered,
-        total_count: total,
-        threshold,
-        within_tolerance: (empirical_coverage - coverage_target).abs() <= tolerance,
+/// Wilson score interval for a binomial proportion at ~95% confidence.
+/// Used to decide whether observed coverage is *significantly* below target
+/// instead of alerting on noise.
+pub fn wilson_interval(successes: usize, trials: usize) -> Option<(f64, f64)> {
+    if trials == 0 {
+        return None;
     }
+    let z = 1.959_963_984_540_054_f64;
+    let n = trials as f64;
+    let p = successes as f64 / n;
+    let denom = 1.0 + z * z / n;
+    let centre = (p + z * z / (2.0 * n)) / denom;
+    let half = z * ((p * (1.0 - p) / n) + z * z / (4.0 * n * n)).sqrt() / denom;
+    Some(((centre - half).max(0.0), (centre + half).min(1.0)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proptest::prelude::*;
 
-    fn make_calibration_set(id: &str, scores: &[(f64, bool)]) -> CalibrationSet {
-        let entry = CalibrationEntry {
-            query: "test query".into(),
-            taxonomy: QueryTaxonomy::Factoid,
-            relevant_chunk_ids: vec![],
-            scores: scores
-                .iter()
-                .enumerate()
-                .map(|(i, (s, rel))| CalibrationScore {
-                    chunk_id: format!("c{i}"),
-                    nonconformity_score: *s,
-                    is_relevant: *rel,
-                })
-                .collect(),
-        };
-        CalibrationSet {
-            id: id.to_string(),
-            entries: vec![entry],
-            created_at: Utc::now(),
+    /// Deterministic xorshift so the statistical tests are reproducible
+    /// without pulling in a rand dependency.
+    struct Rng(u64);
+    impl Rng {
+        fn next_f64(&mut self) -> f64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            (self.0 >> 11) as f64 / (1u64 << 53) as f64
         }
     }
 
     #[test]
-    fn threshold_covers_target_fraction_on_synthetic_data() {
-        // 100 relevant chunks with scores 0.01, 0.02, ..., 1.00
-        let scores: Vec<(f64, bool)> = (1..=100).map(|i| (i as f64 * 0.01, true)).collect();
-        let cal = make_calibration_set("cal1", &scores);
-        let threshold = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95).unwrap();
+    fn nonconformity_is_decreasing_in_score() {
+        assert!(nonconformity(0.9) < nonconformity(0.1));
+    }
 
-        // At 95% coverage the threshold should be at or above the 95th percentile
-        // of the relevant scores, which is 0.95.
-        assert!(threshold <= 1.0);
-        assert!(
-            threshold >= 0.94,
-            "threshold {threshold} should cover 95% of scores"
+    #[test]
+    fn query_score_takes_best_relevant_and_inf_when_missing() {
+        assert_eq!(query_score([0.4, 0.1, 0.7]), 0.1);
+        assert!(query_score(std::iter::empty()).is_infinite());
+    }
+
+    #[test]
+    fn min_examples_matches_closed_form() {
+        assert_eq!(min_examples_for(0.9), 9);
+        assert_eq!(min_examples_for(0.95), 19);
+        assert_eq!(min_examples_for(0.99), 99);
+    }
+
+    #[test]
+    fn threshold_uses_finite_sample_quantile() {
+        // 100 scores 0.01..=1.00; k = ceil(101 * 0.9) = 91 -> 0.91
+        let scores: Vec<f64> = (1..=100).map(|i| i as f64 / 100.0).collect();
+        let t = conformal_threshold(&scores, 0.9);
+        assert_eq!(t, Threshold::Calibrated { tau: 0.91 });
+    }
+
+    #[test]
+    fn too_few_examples_is_reported() {
+        let t = conformal_threshold(&[0.1, 0.2, 0.3], 0.95);
+        assert_eq!(
+            t,
+            Threshold::InsufficientData {
+                required: 19,
+                provided: 3
+            }
         );
     }
 
     #[test]
-    fn coverage_guarantee_holds_on_test_split() {
-        // Train: 200 relevant scores uniformly in [0, 1]
-        // Test: same distribution -> empirical coverage should be >= target
-        let cal_scores: Vec<(f64, bool)> = (0..200).map(|i| (i as f64 / 200.0, true)).collect();
-        let test_scores: Vec<(f64, bool)> = (0..200).map(|i| (i as f64 / 200.0, true)).collect();
-
-        let cal = make_calibration_set("cal", &cal_scores);
-        let test = make_calibration_set("test", &test_scores);
-
-        let report = verify_coverage(&cal, &test, &QueryTaxonomy::Factoid, 0.90, 0.05);
-        assert!(
-            report.empirical_coverage >= 0.85,
-            "coverage too low: {}",
-            report.empirical_coverage
-        );
+    fn retrieval_misses_make_target_unachievable() {
+        // 20% of queries have no relevant candidate at all.
+        let mut scores: Vec<f64> = (0..80).map(|i| i as f64 / 100.0).collect();
+        scores.extend(std::iter::repeat_n(f64::INFINITY, 20));
+        match conformal_threshold(&scores, 0.95) {
+            Threshold::Unachievable { max_coverage } => {
+                assert!((max_coverage - 80.0 / 101.0).abs() < 1e-12);
+            }
+            other => panic!("expected Unachievable, got {other:?}"),
+        }
+        // A lower target that the retriever can meet still calibrates.
+        assert!(conformal_threshold(&scores, 0.7).tau().is_some());
     }
 
     #[test]
-    fn gate_abstains_when_all_scores_exceed_threshold() {
-        let evidence: Vec<SelectedEvidence> = (0..5)
-            .map(|i| SelectedEvidence {
-                chunk_id: format!("c{i}"),
-                fused_score: 0.5,
-                rerank_score: 0.5,
-                marginal_gain: 0.5,
-                nonconformity_score: 0.99,
-                text: "text".into(),
-                metadata: sievrant_core::types::ChunkMetadata {
-                    doc_id: format!("d{i}"),
-                    source_doc: "t.pdf".into(),
-                    doc_version_hash: "sha256:x".into(),
-                    path: vec![],
-                    page: None,
-                    char_span: None,
-                    ingested_at: Utc::now(),
-                    index_generation: 1,
-                    acl_groups: vec![],
-                    token_count: 100,
-                },
-            })
-            .collect();
-
-        let result = conformal_gate(evidence, 0.5, 1);
-        assert!(matches!(result.decision, Decision::Abstained));
-        assert!(result.evidence.is_empty());
-        assert_eq!(result.rejected.len(), 5);
+    fn threshold_is_monotone_in_coverage() {
+        let mut rng = Rng(7);
+        let scores: Vec<f64> = (0..500).map(|_| rng.next_f64()).collect();
+        let mut last = f64::NEG_INFINITY;
+        for c in [0.5, 0.8, 0.9, 0.95, 0.99] {
+            let tau = conformal_threshold(&scores, c).tau().unwrap();
+            assert!(tau >= last);
+            last = tau;
+        }
     }
 
     #[test]
-    fn gate_answers_when_enough_chunks_pass() {
-        let evidence: Vec<SelectedEvidence> = (0..3)
-            .map(|i| SelectedEvidence {
-                chunk_id: format!("c{i}"),
-                fused_score: 0.8,
-                rerank_score: 0.8,
-                marginal_gain: 0.5,
-                nonconformity_score: 0.1,
-                text: "relevant text".into(),
-                metadata: sievrant_core::types::ChunkMetadata {
-                    doc_id: format!("d{i}"),
-                    source_doc: "t.pdf".into(),
-                    doc_version_hash: "sha256:x".into(),
-                    path: vec![],
-                    page: None,
-                    char_span: None,
-                    ingested_at: Utc::now(),
-                    index_generation: 1,
-                    acl_groups: vec![],
-                    token_count: 100,
-                },
-            })
-            .collect();
-
-        let result = conformal_gate(evidence, 0.5, 1);
-        assert!(matches!(result.decision, Decision::Answered));
-        assert_eq!(result.evidence.len(), 3);
+    fn conformal_set_selects_scores_at_or_below_tau() {
+        assert_eq!(conformal_set(&[0.1, 0.5, 0.3, 0.9], 0.3), vec![0, 2]);
     }
 
+    /// The core statistical property: averaged over many random
+    /// calibration/test splits, coverage lands in
+    /// [1 - alpha, 1 - alpha + 1/(n+1)] up to Monte Carlo error.
     #[test]
-    fn threshold_is_monotone_increasing_in_coverage_target() {
-        let scores: Vec<(f64, bool)> = (0..100).map(|i| (i as f64 * 0.01, true)).collect();
-        let cal = make_calibration_set("cal_mono", &scores);
-
-        let t90 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.90).unwrap();
-        let t95 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95).unwrap();
-        let t99 = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.99).unwrap();
-
-        assert!(
-            t90 <= t95,
-            "threshold must be non-decreasing: t90={t90} t95={t95}"
-        );
-        assert!(
-            t95 <= t99,
-            "threshold must be non-decreasing: t95={t95} t99={t99}"
-        );
-    }
-
-    #[test]
-    fn insufficient_data_returns_error() {
-        let cal = CalibrationSet {
-            id: "empty".into(),
-            entries: vec![],
-            created_at: Utc::now(),
-        };
-        let result = compute_threshold(&cal, &QueryTaxonomy::Factoid, 0.95);
-        assert!(result.is_err());
-    }
-
-    proptest! {
-        #[test]
-        fn threshold_monotone_proptest(
-            n in 10usize..200,
-            coverage_a in 0.5f64..0.9,
-        ) {
-            let coverage_b = (coverage_a + 0.05).min(0.999);
-            let scores: Vec<(f64, bool)> = (0..n).map(|i| (i as f64 / n as f64, true)).collect();
-            let cal = make_calibration_set("prop_cal", &scores);
-
-            let ta = compute_threshold(&cal, &QueryTaxonomy::Factoid, coverage_a).unwrap();
-            let tb = compute_threshold(&cal, &QueryTaxonomy::Factoid, coverage_b).unwrap();
-            prop_assert!(
-                ta <= tb + 1e-10,
-                "threshold not monotone: coverage_a={coverage_a} ta={ta}, coverage_b={coverage_b} tb={tb}"
+    fn marginal_coverage_holds_on_exchangeable_data() {
+        let mut rng = Rng(0x5eed);
+        let n_cal = 200;
+        let n_test = 200;
+        let trials = 400;
+        for &coverage in &[0.8, 0.9, 0.95] {
+            let mut total = 0.0;
+            for _ in 0..trials {
+                // Skewed score distribution with 1% retrieval misses (low enough
+                // that every trial stays achievable at 95%).
+                let mut draw = || {
+                    let u = rng.next_f64();
+                    if u < 0.01 {
+                        f64::INFINITY
+                    } else {
+                        rng.next_f64().powf(3.0)
+                    }
+                };
+                let cal: Vec<f64> = (0..n_cal).map(|_| draw()).collect();
+                let test: Vec<f64> = (0..n_test).map(|_| draw()).collect();
+                let tau = conformal_threshold(&cal, coverage).tau().unwrap();
+                total += empirical_coverage(&test, tau).unwrap();
+            }
+            let mean = total / trials as f64;
+            let upper = coverage + 1.0 / (n_cal as f64 + 1.0);
+            assert!(
+                mean >= coverage - 0.005,
+                "coverage {mean:.4} below target {coverage}"
+            );
+            assert!(
+                mean <= upper + 0.005,
+                "coverage {mean:.4} above upper bound {upper:.4}"
             );
         }
     }
 
     #[test]
-    fn nonconformity_score_clamp_bounds() {
-        // High scores (e.g. perfect 1.0) -> nonconformity 0.0
-        let score = nonconformity_score(1.0, 1.0, 1.0);
-        assert!(score.abs() < 1e-10);
-
-        // Low scores (e.g. 0.0) -> nonconformity 1.0
-        let score = nonconformity_score(0.0, 0.0, 0.0);
-        assert!((score - 1.0).abs() < 1e-10);
-
-        // Clamping ensures it doesn't drop below 0 if inputs are > 1
-        let score = nonconformity_score(2.0, 2.0, 2.0);
-        assert!(score.abs() < 1e-10);
+    fn wilson_interval_brackets_proportion() {
+        let (lo, hi) = wilson_interval(90, 100).unwrap();
+        assert!(lo < 0.9 && hi > 0.9);
+        assert!(wilson_interval(0, 0).is_none());
     }
 }

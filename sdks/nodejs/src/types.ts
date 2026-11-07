@@ -112,8 +112,14 @@ export interface EvidencePacket {
   answer: string | null;
   /** Retrieval outcome. Drives agent branching. */
   decision: Decision;
-  /** Nominal conformal coverage target configured for this call. */
-  coverage_guarantee: number;
+  /** Coverage guaranteed for this response, or null when no guarantee applies (see guarantee_status). */
+  coverage_guarantee: number | null;
+  /** calibrated | uncalibrated | insufficient_data | unachievable | stale | degraded (summary endpoint). */
+  guarantee_status?: string;
+  /** Plain-language statement of what holds for this response (summary endpoint). */
+  guarantee_statement?: string;
+  /** Full guarantee details: threshold, calibration set, observed coverage (/v1/query/full only). */
+  guarantee?: Record<string, unknown>;
   /** Empirical coverage rate over the last 30 days. null until enough data accumulates. */
   empirical_coverage_last_30d: number | null;
   /** Which pipeline path this query took. */
@@ -141,15 +147,22 @@ export interface IngestResponse {
   corpus: string;
   ingested: number;
   failed: number;
+  /** Documents skipped because their content was unchanged. */
+  unchanged?: number;
+  chunks?: number;
+  failures?: { doc_id: string; reason: string }[];
 }
 
 /** Metadata about a document corpus. */
 export interface CorpusMetadata {
   name: string;
-  created_at: string;
   document_count: number;
   chunk_count: number;
-  index_generation: number;
+  tenant?: string;
+  guarantee_status?: string;
+  pipeline_fingerprint?: string;
+  created_at?: string;
+  index_generation?: number;
   calibration_set_id: string | null;
 }
 

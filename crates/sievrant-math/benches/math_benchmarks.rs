@@ -1,9 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use sievrant_core::types::{ChunkMetadata, RankedCandidate, RetrieverType};
 use sievrant_math::{
-    conformal::{
-        compute_threshold, nonconformity_score, CalibrationEntry, CalibrationScore, CalibrationSet,
-    },
+    conformal::{conformal_threshold, nonconformity},
     rrf::reciprocal_rank_fusion,
     submodular::submodular_select,
 };
@@ -81,32 +79,8 @@ fn bench_conformal_threshold(c: &mut Criterion) {
     let mut group = c.benchmark_group("Conformal Threshold");
     for size in [100, 500, 1000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, &n| {
-            // Generate nonconformity scores wrapped in CalibrationSet
-            let entries = (0..n)
-                .map(|i| CalibrationEntry {
-                    query: format!("q_{}", i),
-                    taxonomy: sievrant_core::types::QueryTaxonomy::Factoid,
-                    relevant_chunk_ids: vec!["c1".into()],
-                    scores: vec![CalibrationScore {
-                        chunk_id: "c1".into(),
-                        nonconformity_score: i as f64 / n as f64,
-                        is_relevant: true,
-                    }],
-                })
-                .collect();
-            let cal_set = CalibrationSet {
-                id: "test-set".into(),
-                entries,
-                created_at: chrono::Utc::now(),
-            };
-
-            b.iter(|| {
-                let _ = compute_threshold(
-                    black_box(&cal_set),
-                    black_box(&sievrant_core::types::QueryTaxonomy::Factoid),
-                    black_box(0.95),
-                );
-            })
+            let scores: Vec<f64> = (0..n).map(|i| i as f64 / n as f64).collect();
+            b.iter(|| conformal_threshold(black_box(&scores), black_box(0.95)))
         });
     }
     group.finish();
@@ -116,11 +90,7 @@ fn bench_nonconformity_score(c: &mut Criterion) {
     c.bench_function("Nonconformity Score Batch 1000", |b| {
         b.iter(|| {
             for i in 0..1000 {
-                black_box(nonconformity_score(
-                    black_box(0.8),
-                    black_box(0.5),
-                    black_box(i as f64 / 1000.0),
-                ));
+                black_box(nonconformity(black_box(i as f64 / 1000.0)));
             }
         })
     });

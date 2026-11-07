@@ -70,7 +70,10 @@ pub trait EmbeddingProvider: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub enum VectorBackendConfig {
+    /// Volatile in-memory store.
     Memory,
+    /// In-memory store persisted to an append-only log at this path.
+    PersistentMemory { path: std::path::PathBuf },
     Qdrant {
         url: String,
         api_key: Option<String>,
@@ -82,7 +85,7 @@ pub enum VectorBackendConfig {
 impl Default for VectorBackendConfig {
     fn default() -> Self {
         Self::Qdrant {
-            url: "http://localhost:6333".into(),
+            url: "http://localhost:6334".into(),
             api_key: None,
             collection_name: "sievrant".into(),
         }
@@ -133,6 +136,9 @@ impl VectorIndex {
         let store: Box<dyn VectorStore> = match config.backend {
             VectorBackendConfig::Memory => {
                 Box::new(memory::MemoryStore::new(config.embedding_dimensions))
+            }
+            VectorBackendConfig::PersistentMemory { path } => {
+                Box::new(memory::MemoryStore::open(path)?)
             }
             VectorBackendConfig::Qdrant {
                 url,

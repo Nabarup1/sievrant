@@ -16,48 +16,74 @@ use sievrant_core::{
     types::{ChunkMetadata, RankedCandidate, RetrieverType},
 };
 
+/// Qdrant-backed vector store. One collection per (tenant, corpus).
+///
+/// The collection is created on first insert, sized from the first
+/// embedding, so the vector dimension never has to be configured by hand.
 pub struct QdrantStore {
     client: Qdrant,
     collection_name: String,
+    ready: tokio::sync::OnceCell<()>,
+}
+
+/// Qdrant point ids must be UUIDs or integers; chunk ids are neither, so
+/// they are mapped to a stable UUIDv5.
+pub fn point_uuid(chunk_id: &str) -> String {
+    uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, chunk_id.as_bytes()).to_string()
 }
 
 impl QdrantStore {
     pub async fn new(
         url: String,
-        _api_key: Option<String>,
+        api_key: Option<String>,
         collection_name: String,
-        dim: usize,
+        _dim: usize,
     ) -> Result<Self> {
-        let client = Qdrant::from_url(&url)
+        let mut builder = Qdrant::from_url(&url);
+        if let Some(key) = api_key.filter(|k| !k.is_empty()) {
+            builder = builder.api_key(key);
+        }
+        let client = builder
             .build()
             .map_err(|e| IndexError::Vector(e.to_string()))?;
-
-        let exists = client
-            .collection_exists(&collection_name)
-            .await
-            .map_err(|e| IndexError::Vector(e.to_string()))?;
-
-        if !exists {
-            client
-                .create_collection(CreateCollection {
-                    collection_name: collection_name.clone(),
-                    vectors_config: Some(VectorsConfig {
-                        config: Some(Config::Params(VectorParams {
-                            size: dim as u64,
-                            distance: Distance::Cosine.into(),
-                            ..Default::default()
-                        })),
-                    }),
-                    ..Default::default()
-                })
-                .await
-                .map_err(|e| IndexError::Vector(e.to_string()))?;
-        }
 
         Ok(Self {
             client,
             collection_name,
+            ready: tokio::sync::OnceCell::new(),
         })
+    }
+
+    async fn exists(&self) -> Result<bool> {
+        self.client
+            .collection_exists(&self.collection_name)
+            .await
+            .map_err(|e| IndexError::Vector(e.to_string()).into())
+    }
+
+    async fn ensure_collection(&self, dim: usize) -> Result<()> {
+        self.ready
+            .get_or_try_init(|| async {
+                if !self.exists().await? {
+                    self.client
+                        .create_collection(CreateCollection {
+                            collection_name: self.collection_name.clone(),
+                            vectors_config: Some(VectorsConfig {
+                                config: Some(Config::Params(VectorParams {
+                                    size: dim as u64,
+                                    distance: Distance::Cosine.into(),
+                                    ..Default::default()
+                                })),
+                            }),
+                            ..Default::default()
+                        })
+                        .await
+                        .map_err(|e| IndexError::Vector(e.to_string()))?;
+                }
+                Ok::<(), sievrant_core::error::SievrantError>(())
+            })
+            .await
+            .map(|_| ())
     }
 
     fn build_acl_filter(allowed_groups: &[String]) -> Option<Filter> {
@@ -92,6 +118,14 @@ impl QdrantStore {
 #[async_trait]
 impl VectorStore for QdrantStore {
     async fn upsert_vectors(&self, chunks: &[IndexChunk]) -> Result<()> {
+        let Some(dim) = chunks
+            .iter()
+            .find_map(|c| c.embedding.as_ref().map(|e| e.len()))
+        else {
+            return Ok(());
+        };
+        self.ensure_collection(dim).await?;
+
         let points: Vec<PointStruct> = chunks
             .iter()
             .filter_map(|chunk| {
@@ -160,9 +194,9 @@ impl VectorStore for QdrantStore {
                 Some(PointStruct {
                     id: Some(PointId {
                         point_id_options: Some(
-                            qdrant_client::qdrant::point_id::PointIdOptions::Uuid(
-                                chunk.chunk_id.clone(),
-                            ),
+                            qdrant_client::qdrant::point_id::PointIdOptions::Uuid(point_uuid(
+                                &chunk.chunk_id,
+                            )),
                         ),
                     }),
                     vectors: Some(embedding.clone().into()),
@@ -189,6 +223,9 @@ impl VectorStore for QdrantStore {
         top_k: usize,
         acl_filter: &[String],
     ) -> Result<Vec<RankedCandidate>> {
+        if self.ready.get().is_none() && !self.exists().await? {
+            return Ok(vec![]);
+        }
         let filter = Self::build_acl_filter(acl_filter);
 
         let results = self
@@ -278,11 +315,14 @@ impl VectorStore for QdrantStore {
     }
 
     async fn delete_documents(&self, chunk_ids: &[String]) -> Result<()> {
+        if chunk_ids.is_empty() || (self.ready.get().is_none() && !self.exists().await?) {
+            return Ok(());
+        }
         let ids: Vec<PointId> = chunk_ids
             .iter()
             .map(|id| PointId {
                 point_id_options: Some(qdrant_client::qdrant::point_id::PointIdOptions::Uuid(
-                    id.clone(),
+                    point_uuid(id),
                 )),
             })
             .collect();
@@ -305,6 +345,14 @@ impl VectorStore for QdrantStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn point_ids_are_stable_uuids() {
+        let a = point_uuid("doc-1:0:3");
+        assert_eq!(a, point_uuid("doc-1:0:3"));
+        assert_ne!(a, point_uuid("doc-1:0:4"));
+        assert!(uuid::Uuid::parse_str(&a).is_ok());
+    }
 
     #[test]
     fn acl_filter_with_no_groups_returns_none() {

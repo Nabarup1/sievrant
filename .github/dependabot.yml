@@ -11,6 +11,16 @@ updates:
     labels:
       - dependencies
       - rust
+    # These crates must move together: utoipa-swagger-ui pins a specific
+    # utoipa and axum major version, and bumping one alone breaks the build.
+    groups:
+      http-stack:
+        patterns:
+          - "axum*"
+          - "utoipa*"
+          - "tower*"
+          - "tonic*"
+          - "prost*"
 
   # Python SDK dependencies
   - package-ecosystem: pip

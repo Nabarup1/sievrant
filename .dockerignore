@@ -1,0 +1,17 @@
+target/
+.git/
+.vscode/
+.env
+.env.*
+!.env.example
+data/
+qdrant_storage/
+models/
+oha
+*.log
+.pytest_cache/
+.deepeval/
+benchmarks/
+sdks/python/venv/
+sdks/python/.venv/
+sdks/nodejs/node_modules/

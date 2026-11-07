@@ -4,35 +4,68 @@ use serde_json::json;
 
 use sievrant_core::error::{LlmError, Result};
 
+use crate::client::send_with_retry;
 use crate::provider::{FinishReason, LlmProvider, LlmRequest, LlmResponse, Role, TokenUsage};
 
-/// OpenAI-compatible adapter. Works with OpenAI, DeepSeek, GLM, local vllm,
-/// and any gateway that exposes the standard /v1/chat/completions endpoint.
+/// OpenAI-compatible `/chat/completions` adapter. Works with OpenAI,
+/// OpenRouter, DeepSeek, Groq, Mistral, Together, Fireworks, xAI, Ollama,
+/// LM Studio, vLLM and any other gateway exposing the same endpoint.
 pub struct OpenAiCompatible {
     client: reqwest::Client,
+    provider: String,
     base_url: String,
     api_key: String,
     model: String,
     context_window: usize,
+    max_retries: u32,
+    extra_headers: Vec<(String, String)>,
 }
 
 impl OpenAiCompatible {
     pub fn openai(api_key: &str, model: &str) -> Self {
-        Self::custom("https://api.openai.com/v1", api_key, model, 128_000)
+        Self::custom("https://api.openai.com/v1", api_key, model, 128_000).named("openai")
     }
 
     pub fn deepseek(api_key: &str, model: &str) -> Self {
-        Self::custom("https://api.deepseek.com/v1", api_key, model, 64_000)
+        Self::custom("https://api.deepseek.com/v1", api_key, model, 64_000).named("deepseek")
     }
 
     pub fn custom(base_url: &str, api_key: &str, model: &str, context_window: usize) -> Self {
         Self {
             client: reqwest::Client::new(),
+            provider: "openai-compatible".into(),
             base_url: base_url.trim_end_matches('/').to_string(),
             api_key: api_key.to_string(),
             model: model.to_string(),
             context_window,
+            max_retries: 3,
+            extra_headers: Vec::new(),
         }
+    }
+
+    /// Provider name used in logs and error messages.
+    pub fn named(mut self, provider: &str) -> Self {
+        self.provider = provider.to_string();
+        self
+    }
+
+    pub fn with_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
+        self
+    }
+
+    /// Extra headers, e.g. OpenRouter's `HTTP-Referer` / `X-Title`.
+    pub fn with_header(mut self, name: &str, value: &str) -> Self {
+        self.extra_headers
+            .push((name.to_string(), value.to_string()));
+        self
+    }
+
+    /// OpenAI's reasoning models (o-series, gpt-5 family) reject `max_tokens`
+    /// and any temperature other than the default.
+    fn is_openai_reasoning_model(&self) -> bool {
+        let m = self.model.as_str();
+        self.base_url.contains("api.openai.com") && (m.starts_with('o') || m.starts_with("gpt-5"))
     }
 
     fn build_request_body(&self, req: &LlmRequest) -> serde_json::Value {
@@ -51,12 +84,20 @@ impl OpenAiCompatible {
             messages.push(json!({ "role": role, "content": msg.content }));
         }
 
-        json!({
-            "model": self.model,
-            "messages": messages,
-            "max_tokens": req.max_tokens,
-            "temperature": req.temperature,
-        })
+        if self.is_openai_reasoning_model() {
+            json!({
+                "model": self.model,
+                "messages": messages,
+                "max_completion_tokens": req.max_tokens,
+            })
+        } else {
+            json!({
+                "model": self.model,
+                "messages": messages,
+                "max_tokens": req.max_tokens,
+                "temperature": req.temperature,
+            })
+        }
     }
 }
 
@@ -64,7 +105,8 @@ impl OpenAiCompatible {
 struct OpenAiResponse {
     choices: Vec<OpenAiChoice>,
     usage: Option<OpenAiUsage>,
-    model: String,
+    #[serde(default)]
+    model: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -90,99 +132,53 @@ impl LlmProvider for OpenAiCompatible {
         let url = format!("{}/chat/completions", self.base_url);
         let body = self.build_request_body(&req);
 
-        // Exponential backoff: 3 attempts for rate limits and server errors.
-        let max_attempts = 3u32;
-        let mut attempt = 0u32;
-
-        loop {
-            attempt += 1;
-            let response = self
-                .client
-                .post(&url)
-                .header("Authorization", format!("Bearer {}", self.api_key))
-                .header("Content-Type", "application/json")
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| LlmError::Http(e.to_string()))?;
-
-            let status = response.status();
-
-            if status == 429 {
-                if attempt < max_attempts {
-                    let backoff_ms = 500u64 * (1 << (attempt - 1));
-                    tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
-                    continue;
-                }
-                return Err(LlmError::RateLimited {
-                    provider: "openai-compatible".into(),
-                    retry_after_ms: 1000,
-                }
-                .into());
+        let response = send_with_retry(&self.provider, self.max_retries, || {
+            let mut rb = self.client.post(&url).json(&body);
+            if !self.api_key.is_empty() {
+                rb = rb.bearer_auth(&self.api_key);
             }
-
-            if status.is_server_error() {
-                if attempt < max_attempts {
-                    let backoff_ms = 500u64 * (1 << (attempt - 1));
-                    tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
-                    continue;
-                }
-                let body_text = response.text().await.unwrap_or_default();
-                return Err(LlmError::ApiError {
-                    provider: "openai-compatible".into(),
-                    status: status.as_u16(),
-                    body: body_text,
-                }
-                .into());
+            for (k, v) in &self.extra_headers {
+                rb = rb.header(k.as_str(), v.as_str());
             }
+            rb
+        })
+        .await?;
 
-            if !status.is_success() {
-                let body_text = response.text().await.unwrap_or_default();
-                return Err(LlmError::ApiError {
-                    provider: "openai-compatible".into(),
-                    status: status.as_u16(),
-                    body: body_text,
-                }
-                .into());
-            }
+        let parsed: OpenAiResponse = response.json().await.map_err(|e| LlmError::ParseError {
+            provider: self.provider.clone(),
+            reason: e.to_string(),
+        })?;
 
-            let parsed: OpenAiResponse =
-                response.json().await.map_err(|e| LlmError::ParseError {
-                    provider: "openai-compatible".into(),
-                    reason: e.to_string(),
-                })?;
+        let choice = parsed
+            .choices
+            .into_iter()
+            .next()
+            .ok_or_else(|| LlmError::ParseError {
+                provider: self.provider.clone(),
+                reason: "empty choices array".into(),
+            })?;
 
-            let choice = parsed
-                .choices
-                .into_iter()
-                .next()
-                .ok_or_else(|| LlmError::ParseError {
-                    provider: "openai-compatible".into(),
-                    reason: "empty choices array".into(),
-                })?;
+        let finish_reason = match choice.finish_reason.as_deref() {
+            Some("stop") => FinishReason::Stop,
+            Some("length") => FinishReason::Length,
+            Some("content_filter") => FinishReason::ContentFilter,
+            _ => FinishReason::Unknown,
+        };
 
-            let finish_reason = match choice.finish_reason.as_deref() {
-                Some("stop") => FinishReason::Stop,
-                Some("length") => FinishReason::Length,
-                Some("content_filter") => FinishReason::ContentFilter,
-                _ => FinishReason::Unknown,
-            };
+        let usage = parsed
+            .usage
+            .map(|u| TokenUsage {
+                input_tokens: u.prompt_tokens,
+                output_tokens: u.completion_tokens,
+            })
+            .unwrap_or_default();
 
-            let usage = parsed
-                .usage
-                .map(|u| TokenUsage {
-                    input_tokens: u.prompt_tokens,
-                    output_tokens: u.completion_tokens,
-                })
-                .unwrap_or_default();
-
-            return Ok(LlmResponse {
-                content: choice.message.content.unwrap_or_default(),
-                usage,
-                model: parsed.model,
-                finish_reason,
-            });
-        }
+        Ok(LlmResponse {
+            content: choice.message.content.unwrap_or_default(),
+            usage,
+            model: parsed.model.unwrap_or_else(|| self.model.clone()),
+            finish_reason,
+        })
     }
 
     fn supports_vision(&self) -> bool {
@@ -202,10 +198,8 @@ impl LlmProvider for OpenAiCompatible {
 mod tests {
     use super::*;
 
-    #[test]
-    fn request_body_includes_system_prompt_as_first_message() {
-        let adapter = OpenAiCompatible::openai("sk-test", "gpt-4o");
-        let req = LlmRequest {
+    fn req() -> LlmRequest {
+        LlmRequest {
             messages: vec![crate::provider::Message {
                 role: Role::User,
                 content: "Hello".into(),
@@ -213,12 +207,33 @@ mod tests {
             max_tokens: 100,
             temperature: 0.0,
             system_prompt: Some("You are an assistant.".into()),
-        };
-        let body = adapter.build_request_body(&req);
+        }
+    }
+
+    #[test]
+    fn request_body_includes_system_prompt_as_first_message() {
+        let adapter = OpenAiCompatible::openai("sk-test", "gpt-4o");
+        let body = adapter.build_request_body(&req());
         let messages = body["messages"].as_array().unwrap();
         assert_eq!(messages[0]["role"], "system");
         assert_eq!(messages[0]["content"], "You are an assistant.");
         assert_eq!(messages[1]["role"], "user");
+        assert_eq!(body["max_tokens"], 100);
+    }
+
+    #[test]
+    fn openai_reasoning_models_use_max_completion_tokens() {
+        let body = OpenAiCompatible::openai("k", "gpt-5-mini").build_request_body(&req());
+        assert_eq!(body["max_completion_tokens"], 100);
+        assert!(body.get("max_tokens").is_none());
+        assert!(body.get("temperature").is_none());
+    }
+
+    #[test]
+    fn other_gateways_keep_standard_params_for_same_model_name() {
+        let body = OpenAiCompatible::custom("https://openrouter.ai/api/v1", "k", "gpt-5-mini", 8)
+            .build_request_body(&req());
+        assert_eq!(body["max_tokens"], 100);
     }
 
     #[test]

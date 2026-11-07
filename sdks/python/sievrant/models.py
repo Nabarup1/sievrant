@@ -172,8 +172,20 @@ class EvidencePacket(BaseModel):
     decision: Decision
     """Retrieval outcome. Drives agent branching."""
 
-    coverage_guarantee: float
-    """Nominal conformal coverage target configured for this call."""
+    coverage_guarantee: float | None = None
+    """Coverage guaranteed for this response, or None when no guarantee applies
+    (corpus not calibrated, too few calibration examples, stale, degraded).
+    See ``guarantee_status``."""
+
+    guarantee_status: str | None = None
+    """calibrated, uncalibrated, insufficient_data, unachievable, stale or degraded.
+    Present on /v1/query; on /v1/query/full the same value is in ``guarantee['status']``."""
+
+    guarantee_statement: str | None = None
+    """Plain-language statement of what holds for this response (summary endpoint)."""
+
+    guarantee: dict | None = None
+    """Full guarantee details (threshold, calibration set, observed coverage). /v1/query/full only."""
 
     empirical_coverage_last_30d: float | None = None
     """Empirical coverage rate over the last 30 days. None until enough data accumulates."""
@@ -217,14 +229,22 @@ class IngestResponse(BaseModel):
     corpus: str
     ingested: int
     failed: int
+    unchanged: int = 0
+    """Documents skipped because their content was unchanged."""
+    chunks: int = 0
+    failures: list[dict] = Field(default_factory=list)
+    """One {doc_id, reason} entry per rejected document."""
 
 
 class CorpusMetadata(BaseModel):
     """Metadata about a document corpus."""
 
     name: str
-    created_at: str
     document_count: int
     chunk_count: int
-    index_generation: int
+    tenant: str | None = None
+    guarantee_status: str | None = None
+    pipeline_fingerprint: str | None = None
+    created_at: str | None = None
+    index_generation: int | None = None
     calibration_set_id: str | None = None
