@@ -93,7 +93,7 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 # Concurrency utilities
 arc-swap = "1"
 dashmap = "6"
-ed25519-dalek = { version = "2", features = ["rand_core"] }
+ed25519-dalek = { version = "3", features = ["rand_core"] }
 base64 = "0.22"
 crossbeam-channel = "0.5"
 ordered-float = "5.5"
