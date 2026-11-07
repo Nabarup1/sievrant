@@ -69,7 +69,7 @@ ort = { version = "2.0.0-rc.13", features = ["load-dynamic"] }
 clap = { version = "4", features = ["derive"] }
 
 # Configuration
-config = "0.14"
+config = "0.15"
 
 # Cryptography and hashing
 sha2 = "0.10"
