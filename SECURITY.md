@@ -24,7 +24,7 @@ Sievrant's security architecture is built on the following assumptions:
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability within Sievrant, please do not disclose it publicly. Instead, send an email to the maintainers (or open a confidential GitHub Security Advisory if available on the repository).
+If you discover a security vulnerability within Sievrant, please do not disclose it publicly. Instead, report it privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability** (https://github.com/Nabarup1/sievrant/security/advisories/new).
 
 We will review your report and respond with an initial assessment within 48 hours. Please provide the following details:
 - A description of the vulnerability and its impact.
