@@ -13,7 +13,7 @@ deepeval>=1.0.0
 
 # Data processing and analysis
 pandas>=2.2.0
-numpy>=2.0.0
+numpy>=2.5.4
 scipy>=1.14.0
 
 # Embeddings (for calibration data prep and evaluation)
